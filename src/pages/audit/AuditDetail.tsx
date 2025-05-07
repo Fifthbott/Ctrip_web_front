@@ -6,25 +6,23 @@ import {
     Image,
     Avatar
   } from 'antd';
-  const { Title, Paragraph } = Typography;
+  import './auditList.module.scss'
+
+ const { Title, Paragraph } = Typography;
 
  const DiaryDetail = ({ diary, getStatusStamp }: { 
     diary: TravelDiary;
     getStatusStamp: (status: DiaryStatus) => React.ReactNode;
   }) => {
-    console.log('[渲染] DiaryDetail组件 - ID:', diary.id, '状态:', diary.status);
     
-    
-    // 跟踪组件渲染次数
+ // 跟踪组件渲染次数
     const renderCount = useRef(0);
     useEffect(() => {
       renderCount.current += 1;
-      console.log('[计数] DiaryDetail组件渲染次数 - ID:', diary.id, '次数:', renderCount.current);
     });
     
     // 使用图片列表，避免使用可能导致循环渲染的组件
     const imagesPreview = useMemo(() => {
-      console.log('[Memo] DiaryDetail - ID:', diary.id, '计算图片预览, 图片数量:', diary.images.length);
       if (diary.images.length === 0) return null;
       
       return (
@@ -47,7 +45,6 @@ import {
       );
     }, [diary.images]);
     
-    console.log('[渲染] DiaryDetail - ID:', diary.id, '即将返回JSX');
     return (
       <div className="diary-detail">
         <Title level={4}>{diary.title}</Title>
