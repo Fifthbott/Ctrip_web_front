@@ -1,7 +1,6 @@
 import React, { useState, memo, useMemo, useCallback, useRef, useEffect } from 'react';
 import { 
   Typography, 
-  Modal, 
   Input, 
   Tabs,
   Card,
@@ -12,7 +11,6 @@ import {
   List,
   Space,
   Select,
-  Dropdown
 } from 'antd';
 import { 
   DownOutlined,
@@ -27,10 +25,10 @@ import { DiaryStatus, TravelDiary, UserRole } from '../../types';
 import './audit.scss';
 import testImg from '../../assets/images/test.jpeg';
 import { useWindowSize } from '../../ResizeTracker';
+import CustomModal from '../audit/auditModal';
 
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
-const { TabPane } = Tabs;
 const { Option } = Select;
 
 // 错误边界组件，避免在渲染过程中出现的错误影响整个应用
@@ -633,150 +631,6 @@ const AuditList: React.FC = () => {
     }
   }, [selectedDiary]);
 
-  // 创建自定义模态框内容
-  const customModal = useMemo(() => {
-    console.log('[Memo] AuditList - 计算customModal:', !!detailsModalVisible, !!selectedDiary);
-    if (!detailsModalVisible || !selectedDiary) {
-      return null;
-    }
-    
-    return (
-      <div className="custom-modal-overlay" style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.45)',
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div 
-          className="custom-modal-content" 
-          ref={modalRef}
-          id={`modal-${selectedDiary.id}`} // 添加唯一ID
-          style={{
-            backgroundColor: '#fff',
-            borderRadius: '4px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            padding: '0',
-            maxWidth: '90%',
-            maxHeight: '90vh',
-            overflow: 'auto',
-            position: 'relative'
-          }}
-        >
-          <div className="custom-modal-header" style={{
-            padding: '16px 24px',
-            borderBottom: '1px solid #f0f0f0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <h3 style={{ margin: 0 }}>游记详情</h3>
-            <button 
-              onClick={closeModal} 
-              style={{
-                border: 'none',
-                background: 'none',
-                fontSize: '16px',
-                cursor: 'pointer'
-              }}
-            >
-              ×
-            </button>
-          </div>
-          
-          <div className="custom-modal-body" style={{ padding: '24px' }}>
-            <DiaryDetail 
-              diary={selectedDiary} 
-              getStatusStamp={getStatusStamp} 
-            />
-          </div>
-          
-          <div className="custom-modal-footer" style={{
-            padding: '10px 24px',
-            borderTop: '1px solid #f0f0f0',
-            textAlign: 'right'
-          }}>
-            {selectedDiary.status === DiaryStatus.PENDING ? (
-              <div className="modal-footer">
-                {hasPermission('approve') && (
-                  <button 
-                    className="modal-button approve-button"
-                    onClick={handleApprove}
-                    style={{
-                      marginRight: '8px',
-                      padding: '4px 15px',
-                      backgroundColor: '#52c41a',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '2px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <CheckCircleOutlined /> 批准
-                  </button>
-                )}
-                {hasPermission('reject') && (
-                  <button 
-                    className="modal-button reject-button"
-                    onClick={handleReject}
-                    style={{
-                      marginRight: '8px',
-                      padding: '4px 15px',
-                      backgroundColor: '#ff4d4f',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '2px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <CloseCircleOutlined /> 拒绝
-                  </button>
-                )}
-                {hasPermission('delete') && (
-                  <button 
-                    className="modal-button delete-button"
-                    onClick={handleDelete}
-                    style={{
-                      padding: '4px 15px',
-                      backgroundColor: '#ff7875',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '2px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <DeleteOutlined /> 删除
-                  </button>
-                )}
-              </div>
-            ) : hasPermission('delete') ? (
-              <div className="modal-footer">
-                <button 
-                  className="modal-button delete-button"
-                  onClick={handleDelete}
-                  style={{
-                    padding: '4px 15px',
-                    backgroundColor: '#ff7875',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '2px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <DeleteOutlined /> 删除
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    );
-  }, [detailsModalVisible, selectedDiary, hasPermission, handleApprove, handleReject, handleDelete, getStatusStamp, closeModal]);
 
   // 在返回前记录
   console.log('[渲染] AuditList - 即将返回JSX');
@@ -833,8 +687,17 @@ const AuditList: React.FC = () => {
           />
         </Card>
 
-        {/* 使用自定义模态框代替 Ant Design Modal */}
-        {customModal}
+        <CustomModal
+          modalRef={modalRef}
+          visible={detailsModalVisible}
+          selectedDiary={selectedDiary}
+          hasPermission={hasPermission}
+          handleApprove={handleApprove}
+          handleReject={handleReject}
+          handleDelete={handleDelete}
+          getStatusStamp={getStatusStamp}
+          closeModal={closeModal}
+        />
       </div>
     </ErrorBoundary>
   );
