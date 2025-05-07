@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
-import { Layout, Dropdown, Avatar, Space } from 'antd';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Layout, Avatar, Space, Typography } from 'antd';
 import { 
   LogoutOutlined, 
   UserOutlined, 
   DownOutlined,
-  BookOutlined 
+  BookOutlined,
+  MenuOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,12 +13,14 @@ import { useWindowSize } from '../../ResizeTracker';
 import './AdminLayout.scss';
 
 const { Header, Content } = Layout;
+const { Text } = Typography;
 
 const AdminLayout: React.FC = () => {
   console.log('[渲染] AdminLayout 组件渲染');
   
   // 获取窗口尺寸信息
   const windowSize = useWindowSize();
+  const isMobile = windowSize.width <= 576;
   
   // 在组件渲染时记录
   useEffect(() => {
@@ -28,48 +31,79 @@ const AdminLayout: React.FC = () => {
   
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     console.log('[操作] AdminLayout - 触发登出');
     logout();
     navigate('/login');
-  };
+  }, [logout, navigate]);
 
-  const dropdownItems = {
-    items: [
-      {
-        key: 'logout',
-        label: '退出登录',
-        onClick: handleLogout
+  const toggleDropdown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(prev => !prev);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
       }
-    ]
-  };
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   console.log('[渲染] AdminLayout - 即将返回JSX');
   return (
     <Layout className='layout-container'>
-        <Header className='layout-header'>
-            <div className='logo-section'>
-                <BookOutlined className='logo-icon' />
-                <div className='logo'>旅游日记审核系统</div>
+      <Header className='layout-header'>
+        <div className='logo-section'>
+          <BookOutlined className='logo-icon' />
+          <div className='logo'>旅游日记审核系统</div>
+        </div>
+        <div className='user-info'>
+          <div className="custom-dropdown" ref={dropdownRef}>
+            <Space size="middle" className="user-dropdown" onClick={toggleDropdown}>
+              <Avatar icon={<UserOutlined />} src={user?.avatar} />
+              <span>{user?.name || '用户'}</span>
+              <MenuOutlined className="menu-icon" />
+              <DownOutlined className={`dropdown-icon ${isDropdownOpen ? 'open' : ''}`} />
+            </Space>
+            <div className={`custom-dropdown-menu ${isDropdownOpen ? 'visible' : ''}`}>
+              {isMobile && (
+                <>
+                  <div className="user-profile">
+                    <Avatar size="large" icon={<UserOutlined />} src={user?.avatar} />
+                    <div className="user-details">
+                      <Text strong>{user?.name || '用户'}</Text>
+                      <Text type="secondary">{user?.role === 'admin' ? '管理员' : '审核员'}</Text>
+                    </div>
+                  </div>
+                  <div className="dropdown-divider" />
+                </>
+              )}
+              <div className="dropdown-item" onClick={handleLogout}>
+                <LogoutOutlined /> 退出登录
+              </div>
             </div>
-            <div className='user-info'>
-                    <Space size="middle" className="user-dropdown">
-                        <Avatar icon={<UserOutlined />} src={user?.avatar} />
-                        <span>{user?.name || '用户'}</span>
-                        <Dropdown menu={dropdownItems} placement="bottom" overlayStyle={{width:'80px'}}>
-                        <DownOutlined />
-                        </Dropdown>
-                    </Space>     
-            </div>
-        </Header>
-        <Content className='admin-layout'>
-            <div className='admin-container'>
-                <div className='content-container'>
-                    <Outlet />
-                </div>
-            </div>
-        </Content>
+          </div>
+        </div>
+      </Header>
+      <Content className='admin-layout'>
+        <div className='admin-container'>
+          <div className='content-container'>
+            <Outlet />
+          </div>
+        </div>
+      </Content>
     </Layout>
   );
 };

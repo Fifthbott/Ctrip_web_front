@@ -219,167 +219,102 @@ const DiaryItem = memo(({
 }) => {
   console.log('[渲染] DiaryItem组件 - ID:', item.id, '状态:', item.status);
   
-  // 获取窗口尺寸信息
-  const windowSize = useWindowSize();
-  
-  // 在组件渲染时记录尺寸变化期间的渲染
-  useEffect(() => {
-    if (window.__RESIZE_TRACKER__ && windowSize.isResizing) {
-      window.__RESIZE_TRACKER__.logRender(`DiaryItem-${item.id}`);
-    }
-  });
-  
-  // 跟踪组件渲染次数
-  const renderCount = useRef(0);
-  useEffect(() => {
-    renderCount.current += 1;
-    console.log('[计数] DiaryItem组件渲染次数 - ID:', item.id, '次数:', renderCount.current);
-  });
-  
-  const coverImage = item.images.length > 0 ? item.images[0] : null;
-  
-  // 使用简单的状态管理dropdown，而非Ant Design的Dropdown组件
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // 使用 useRef 存储下拉框状态，避免重新渲染
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // 使用 useCallback 缓存事件处理函数
+  const toggleDropdown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(prev => !prev);
+  }, []);
 
   // 点击外部关闭下拉菜单
   useEffect(() => {
-    console.log('[Effect] DiaryItem - ID:', item.id, '下拉菜单状态变化:', isDropdownOpen);
-    
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        console.log('[事件] DiaryItem - ID:', item.id, '点击外部关闭下拉菜单');
         setIsDropdownOpen(false);
       }
     };
-    
+
     if (isDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    
-    return () => {
-      if (isDropdownOpen) {
-        console.log('[清理] DiaryItem - ID:', item.id, '移除点击监听器');
-        document.removeEventListener('mousedown', handleClickOutside);
-      }
-    };
-  }, [isDropdownOpen, item.id]);
 
-  // 切换下拉菜单开关
-  const toggleDropdown = useCallback(() => {
-    console.log('[操作] DiaryItem - ID:', item.id, '切换下拉菜单');
-    setIsDropdownOpen(prev => !prev);
-  }, [item.id]);
-  
-  // 创建直接的点击处理程序，避免动态菜单
-  const handleViewDetails = useCallback(() => {
-    console.log('[操作] DiaryItem - ID:', item.id, '查看详情');
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
+  // 使用 useCallback 缓存操作函数
+  const handleViewDetails = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
     showDetails(item);
     setIsDropdownOpen(false);
   }, [item, showDetails]);
-  
-  const handleApprove = useCallback(() => {
+
+  const handleApprove = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
     console.log('批准游记', item.id);
     setIsDropdownOpen(false);
-    // TODO: 实现批准逻辑
   }, [item.id]);
-  
-  const handleReject = useCallback(() => {
+
+  const handleReject = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
     console.log('拒绝游记', item.id);
     setIsDropdownOpen(false);
-    // TODO: 实现拒绝逻辑
   }, [item.id]);
-  
-  const handleDelete = useCallback(() => {
+
+  const handleDelete = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
     console.log('删除游记', item.id);
     setIsDropdownOpen(false);
-    // TODO: 实现删除逻辑
   }, [item.id]);
-  
-  // 静态构建下拉菜单内容
-  const dropdownContent = useMemo(() => {
-    console.log('[Memo] DiaryItem - ID:', item.id, '计算下拉菜单内容');
-    return (
-    <div className="custom-dropdown-menu" style={{
-      display: isDropdownOpen ? 'block' : 'none',
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      zIndex: 100,
-      backgroundColor: '#fff',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-      borderRadius: '2px',
-      padding: '4px 0'
-    }}>
-      <div className="dropdown-item" onClick={handleViewDetails} style={{
-        padding: '5px 12px',
-        cursor: 'pointer',
-        transition: 'all 0.3s',
-        lineHeight: '22px'
-      }}>
-        <EyeOutlined style={{ marginRight: '8px' }} />
-        查看详情
+
+  // 使用 useMemo 缓存下拉菜单内容
+  const dropdownContent = useMemo(() => (
+    <div 
+      className={`custom-dropdown-menu ${isDropdownOpen ? 'visible' : ''}`}
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="dropdown-item" onClick={handleViewDetails}>
+        <EyeOutlined /> 查看详情
       </div>
       
       {item.status === DiaryStatus.PENDING && hasPermission('approve') && (
-        <div className="dropdown-item" onClick={handleApprove} style={{
-          padding: '5px 12px',
-          cursor: 'pointer',
-          transition: 'all 0.3s',
-          lineHeight: '22px'
-        }}>
-          <CheckCircleOutlined style={{ marginRight: '8px' }} />
-          批准
+        <div className="dropdown-item" onClick={handleApprove}>
+          <CheckCircleOutlined /> 批准
         </div>
       )}
       
       {item.status === DiaryStatus.PENDING && hasPermission('reject') && (
-        <div className="dropdown-item" onClick={handleReject} style={{
-          padding: '5px 12px',
-          cursor: 'pointer',
-          transition: 'all 0.3s',
-          lineHeight: '22px'
-        }}>
-          <CloseCircleOutlined style={{ marginRight: '8px' }} />
-          拒绝
+        <div className="dropdown-item" onClick={handleReject}>
+          <CloseCircleOutlined /> 拒绝
         </div>
       )}
       
       {hasPermission('delete') && (
-        <div className="dropdown-item" onClick={handleDelete} style={{
-          padding: '5px 12px',
-          cursor: 'pointer',
-          transition: 'all 0.3s',
-          lineHeight: '22px'
-        }}>
-          <DeleteOutlined style={{ marginRight: '8px' }} />
-          删除
+        <div className="dropdown-item" onClick={handleDelete}>
+          <DeleteOutlined /> 删除
         </div>
       )}
     </div>
-  )}, [isDropdownOpen, handleViewDetails, handleApprove, handleReject, handleDelete, item.status, hasPermission, item.id]);
-  
-  // 使用预定义的静态Col属性
-  const imageColProps = colPropsMap.image;
-  const contentColProps = colPropsMap.content;
-  const actionsColProps = colPropsMap.actions;
-  
-  // 静态行属性
-  const rowProps = {
-    gutter: [16, 16] as [number, number],
-    className: "diary-row"
-  };
-  
-  // 使用useMemo缓存整个Row组件的结构，避免每次渲染重新创建
+  ), [isDropdownOpen, item.status, hasPermission, handleViewDetails, handleApprove, handleReject, handleDelete]);
+
+  // 使用 useMemo 缓存行内容
   const rowContent = useMemo(() => {
-    console.log('[Memo] DiaryItem - ID:', item.id, '计算行内容');
+    const imageColProps = colPropsMap.image;
+    const contentColProps = colPropsMap.content;
+    const actionsColProps = colPropsMap.actions;
+    const rowProps = { gutter: [16, 16] as [number, number], className: "diary-row" };
+
     return (
       <StableRow {...rowProps}>
         <StableCol {...imageColProps}>
-          {coverImage ? (
+          {item.images.length > 0 ? (
             <div className="image-container">
               <Image 
-                src={coverImage} 
+                src={item.images[0]} 
                 alt={item.title}
                 className="diary-cover-image"
                 preview={false}
@@ -392,10 +327,12 @@ const DiaryItem = memo(({
           )}
         </StableCol>
         <StableCol {...contentColProps}>
-          {/* 使用自定义下拉菜单替代 Ant Design Dropdown */}
-          <div className="custom-dropdown" ref={dropdownRef} style={{ position: 'relative' }}>
-            <div className="diary-title" onClick={toggleDropdown} style={{ cursor: 'pointer' }}>
-              <Title level={5}>{item.title} <DownOutlined className="dropdown-icon" /></Title>
+          <div className="custom-dropdown" ref={dropdownRef}>
+            <div className="diary-title" onClick={toggleDropdown}>
+              <Title level={5}>
+                {item.title}
+                <DownOutlined className={`dropdown-icon ${isDropdownOpen ? 'open' : ''}`} />
+              </Title>
             </div>
             {dropdownContent}
           </div>
@@ -421,38 +358,47 @@ const DiaryItem = memo(({
         </StableCol>
       </StableRow>
     );
-  }, [
-    coverImage, 
-    item.title, 
-    item.content, 
-    item.author.avatar,
-    item.author.nickname, 
-    item.createdAt,
-    dropdownRef,
-    toggleDropdown,
-    dropdownContent,
-    getStatusStamp,
-    item.status
-  ]);
+  }, [item, dropdownRef, toggleDropdown, dropdownContent, getStatusStamp, isDropdownOpen]);
 
-  console.log('[渲染] DiaryItem - ID:', item.id, '即将返回JSX');
   return (
     <List.Item className="diary-list-item">
       {rowContent}
     </List.Item>
   );
 }, (prevProps, nextProps) => {
-  // 严格比较，确保只有在关键属性变化时才重新渲染
-  const shouldUpdate = !(
+  // 优化比较函数，只在必要时重新渲染
+  return (
     prevProps.item.id === nextProps.item.id &&
     prevProps.item.status === nextProps.item.status &&
     prevProps.showDetails === nextProps.showDetails &&
     prevProps.hasPermission === nextProps.hasPermission &&
     prevProps.getStatusStamp === nextProps.getStatusStamp
   );
-  
-  console.log('[memo比较] DiaryItem - ID:', prevProps.item.id, '是否需要更新:', shouldUpdate);
-  return !shouldUpdate;
+});
+
+// 自定义 Tabs 组件
+const CustomTabs = memo(({ 
+  activeKey, 
+  onChange, 
+  items 
+}: { 
+  activeKey: string;
+  onChange: (key: string) => void;
+  items: { key: string; label: string }[];
+}) => {
+  return (
+    <div className="custom-tabs">
+      {items.map(item => (
+        <div
+          key={item.key}
+          className={`custom-tab-item ${activeKey === item.key ? 'active' : ''}`}
+          onClick={() => onChange(item.key)}
+        >
+          {item.label}
+        </div>
+      ))}
+    </div>
+  );
 });
 
 const AuditList: React.FC = () => {
@@ -496,12 +442,12 @@ const AuditList: React.FC = () => {
   }, []);
   
   // Status filter options
-  const statusOptions = [
+  const statusOptions = useMemo(() => [
     { value: 'all', label: '全部' },
     { value: DiaryStatus.PENDING, label: '待审核' },
     { value: DiaryStatus.APPROVED, label: '已通过' },
     { value: DiaryStatus.REJECTED, label: '未通过' }
-  ];
+  ], []);
 
   // Handle search
   const handleSearch = useCallback((value: string) => {
@@ -641,6 +587,15 @@ const AuditList: React.FC = () => {
       label: option.label
     }))
   , [statusOptions]);
+
+  // 使用 useMemo 缓存自定义 Tabs 组件
+  const tabsComponent = useMemo(() => (
+    <CustomTabs 
+      activeKey={currentFilter} 
+      onChange={handleTabChange} 
+      items={tabItems}
+    />
+  ), [currentFilter, handleTabChange, tabItems]);
 
   // 创建列表项渲染器
   const renderItem = useCallback((item: TravelDiary) => {
@@ -860,13 +815,7 @@ const AuditList: React.FC = () => {
               </Space>
             </div>
             
-            <Tabs 
-              activeKey={currentFilter} 
-              onChange={handleTabChange} 
-              className="status-tabs"
-              type="card"
-              items={tabItems}
-            />
+            {tabsComponent}
           </div>
 
           <List
