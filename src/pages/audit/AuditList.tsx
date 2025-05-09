@@ -10,6 +10,7 @@ import {
   List,
   Space,
   Select,
+  message,
 } from 'antd';
 import { 
   DownOutlined,
@@ -22,9 +23,9 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { DiaryStatus, TravelDiary, UserRole } from '../../types';
 import './audit.scss';
-import testImg from '../../assets/images/test.jpeg';
-import { useWindowSize } from '../../ResizeTracker';
 import CustomModal from '../audit/auditModal';
+import { auditService, GetDiariesParams } from '../../services/auditService';
+import {mockDiaries} from '../../mock/diaryMock';
 
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
@@ -99,108 +100,6 @@ const StableRow = memo(({ children, ...props }: React.ComponentProps<typeof Row>
 const StableCol = memo(({ children, ...props }: React.ComponentProps<typeof Col>) => (
   <Col {...props}>{children}</Col>
 ));
-
-// 测试数据
-const mockDiaries: TravelDiary[] = [
-  {
-    id: '1',
-    title: '三亚五日游',
-    content: '三亚是一个美丽的城市，有着蓝天白云和清澈的海水。这次旅行我体验了很多海上活动，包括潜水、冲浪和帆船。天气晴朗，海滩上人来人往，非常热闹。住的酒店服务也很好，早餐种类丰富。总的来说，这是一次非常愉快的旅行。',
-    images: [
-      testImg,
-      testImg,
-      testImg
-    ],
-    video: '',
-    author: {
-      id: '101',
-      username: 'user1',
-      nickname: '旅行达人',
-      avatar: 'https://joeschmoe.io/api/v1/male/1'
-    },
-    status: DiaryStatus.PENDING,
-    createdAt: '2023-05-15T09:24:00Z',
-    updatedAt: '2023-05-15T09:24:00Z'
-  },
-  {
-    id: '2',
-    title: '北京文化之旅',
-    content: '北京是一座历史悠久的城市，有着丰富的文化遗产和现代都市风貌。参观了故宫、长城和颐和园等著名景点，感受到了深厚的历史文化底蕴。特别是故宫的建筑风格和内部陈设，展现了中国古代宫廷的奢华与精致。',
-    images: [
-      testImg,
-      testImg
-    ],
-    video: '',
-    author: {
-      id: '102',
-      username: 'user2',
-      nickname: '文化探索者',
-      avatar: 'https://joeschmoe.io/api/v1/male/2'
-    },
-    status: DiaryStatus.APPROVED,
-    createdAt: '2023-06-20T14:30:00Z',
-    updatedAt: '2023-06-21T10:15:00Z'
-  },
-  {
-    id: '3',
-    title: '上海美食之旅',
-    content: '上海的美食种类繁多，融合了中西方多种风味。品尝了正宗的上海小笼包、生煎馒头和炒年糕，每一样都让人回味无穷。南京路步行街的夜景也非常美丽，各种霓虹灯照亮了整条街道，非常热闹。',
-    images: [
-      testImg
-    ],
-    video: '',
-    author: {
-      id: '103',
-      username: 'user3',
-      nickname: '美食猎人',
-      avatar: 'https://joeschmoe.io/api/v1/female/1'
-    },
-    status: DiaryStatus.REJECTED,
-    rejectReason: '内容与旅游主题不符，更偏向美食攻略。',
-    createdAt: '2023-07-05T18:45:00Z',
-    updatedAt: '2023-07-06T09:20:00Z'
-  },
-  {
-    id: '4',
-    title: '杭州西湖游记',
-    content: '西湖美景令人陶醉，湖水清澈，周围群山环绕，景色宜人。划着小船在湖中央，感受微风拂面，十分惬意。苏堤和白堤上的柳树随风摇曳，景色如画。特别推荐黄昏时分的断桥，夕阳西下的余晖映照在湖面上，美不胜收。',
-    images: [
-      testImg,
-      testImg,
-      testImg,
-      testImg
-    ],
-    video: '',
-    author: {
-      id: '104',
-      username: 'user4',
-      nickname: '风景摄影师',
-      avatar: 'https://joeschmoe.io/api/v1/male/3'
-    },
-    status: DiaryStatus.PENDING,
-    createdAt: '2023-08-10T11:30:00Z',
-    updatedAt: '2023-08-10T11:30:00Z'
-  },
-  {
-    id: '5',
-    title: '云南民族风情游',
-    content: '云南的民族文化多姿多彩，参观了几个少数民族村寨，领略了不同的民族服饰和生活习俗。大理的洱海风光秀丽，丽江古城保存完好，处处充满古朴的韵味。当地的美食也很特别，过桥米线和破酥包非常好吃。',
-    images: [
-      testImg,
-      testImg
-    ],
-    video: '',
-    author: {
-      id: '105',
-      username: 'user5',
-      nickname: '文化爱好者',
-      avatar: 'https://joeschmoe.io/api/v1/female/2'
-    },
-    status: DiaryStatus.APPROVED,
-    createdAt: '2023-09-02T16:20:00Z',
-    updatedAt: '2023-09-03T08:45:00Z'
-  }
-];
 
 // 创建一个稳定的 DiaryItem 组件，避免使用过多的 Ant Design 动态功能
 const DiaryItem = memo(({ 
@@ -399,32 +298,20 @@ const CustomTabs = memo(({
 });
 
 const AuditList: React.FC = () => {
-  console.log('[渲染] AuditList组件渲染开始');
-  const renderCount = useRef(0);
-  
-  // 获取窗口尺寸信息
-  const windowSize = useWindowSize();
-  
-  // 在组件渲染时记录尺寸变化期间的渲染
-  useEffect(() => {
-    if (window.__RESIZE_TRACKER__ && windowSize.isResizing) {
-      window.__RESIZE_TRACKER__.logRender('AuditList');
-    }
-  });
-  
-  // 增加渲染计数
-  useEffect(() => {
-    renderCount.current += 1;
-    console.log('[计数] AuditList组件渲染次数:', renderCount.current);
-  });
-  
+
   const { user } = useAuth();
   const [selectedDiary, setSelectedDiary] = useState<TravelDiary | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [searchType, setSearchType] = useState('title');
+  const [searchType, setSearchType] = useState<'title' | 'author' | 'content' | 'all'>('title');
   const [currentFilter, setCurrentFilter] = useState<DiaryStatus | 'all'>('all');
   const [loading, setLoading] = useState(false);
+  const [diaries, setDiaries] = useState<TravelDiary[]>([]);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 5,
+    total: 0,
+  });
   
   // 使用useRef存储组件挂载状态，防止在组件卸载后更新状态
   const isMountedRef = useRef(true);
@@ -437,8 +324,8 @@ const AuditList: React.FC = () => {
       isMountedRef.current = false;
     };
   }, []);
-  
-  // Status filter options
+
+  // Status filter options - 移动到组件内部
   const statusOptions = useMemo(() => [
     { value: 'all', label: '全部' },
     { value: DiaryStatus.PENDING, label: '待审核' },
@@ -446,47 +333,62 @@ const AuditList: React.FC = () => {
     { value: DiaryStatus.REJECTED, label: '未通过' }
   ], []);
 
+  // 获取日记列表数据
+  const fetchDiaries = useCallback(async (params: GetDiariesParams) => {
+    // try {
+    //   setLoading(true);
+    //   const response = await auditService.getDiaries(params);
+    //   if (isMountedRef.current) {
+    //     setDiaries(response.data);
+    //     setPagination(prev => ({
+    //       ...prev,
+    //       total: response.total,
+    //     }));
+    //   }
+    // } catch (error) {
+    //   console.error('Failed to fetch diaries:', error);
+    //   message.error('获取游记列表失败');
+    // } finally {
+    //   if (isMountedRef.current) {
+    //     setLoading(false);
+    //   }
+    // }
+    if (isMountedRef.current) {
+      setDiaries(mockDiaries);
+      setPagination(prev => ({
+        ...prev,
+        total: mockDiaries.length,
+      }));
+    }
+  }, []);
+
+  // 监听筛选条件变化，重新获取数据
+  useEffect(() => {
+    const params: GetDiariesParams = {
+      status: currentFilter,
+      searchKeyword,
+      searchType,
+      page: pagination.current,
+      pageSize: pagination.pageSize,
+    };
+    fetchDiaries(params);
+  }, [currentFilter, searchKeyword, searchType, pagination.current, pagination.pageSize, fetchDiaries]);
+
   // Handle search
   const handleSearch = useCallback((value: string) => {
     console.log('[操作] AuditList - 执行搜索:', value);
     setSearchKeyword(value);
+    setPagination(prev => ({ ...prev, current: 1 }));
   }, []);
 
-  // 根据过滤条件获取日记列表
-  const getFilteredDiaries = useCallback(() => {
-    let result = [...mockDiaries];
-    
-    // 根据状态过滤
-    if (currentFilter !== 'all') {
-      result = result.filter(diary => diary.status === currentFilter);
-    }
-    
-    // 根据搜索词过滤
-    if (searchKeyword) {
-      result = result.filter(diary => {
-        if (searchType === 'title' && diary.title.toLowerCase().includes(searchKeyword.toLowerCase())) {
-          return true;
-        }
-        if (searchType === 'author' && diary.author.nickname.toLowerCase().includes(searchKeyword.toLowerCase())) {
-          return true;
-        }
-        if (searchType === 'content' && diary.content.toLowerCase().includes(searchKeyword.toLowerCase())) {
-          return true;
-        }
-        if (searchType === 'all') {
-          return diary.title.toLowerCase().includes(searchKeyword.toLowerCase()) || 
-            diary.author.nickname.toLowerCase().includes(searchKeyword.toLowerCase()) || 
-            diary.content.toLowerCase().includes(searchKeyword.toLowerCase());
-        }
-        return false;
-      });
-    }
-    
-    return result;
-  }, [currentFilter, searchKeyword, searchType]);
-
-  // 使用 useMemo 缓存过滤后的日记列表，避免每次渲染都重新过滤
-  const filteredDiaries = useMemo(() => getFilteredDiaries(), [getFilteredDiaries]);
+  // 处理分页变化
+  const handlePaginationChange = useCallback((page: number, pageSize?: number) => {
+    setPagination(prev => ({
+      ...prev,
+      current: page,
+      pageSize: pageSize || prev.pageSize,
+    }));
+  }, []);
 
   // 检查用户权限 - 使用 useCallback 避免重新创建
   const hasPermission = useCallback((action: 'approve' | 'reject' | 'delete'): boolean => {
@@ -540,7 +442,6 @@ const AuditList: React.FC = () => {
 
   // 渲染状态标签
   const getStatusStamp = useCallback((status: DiaryStatus) => {
-    console.log('[函数调用] AuditList - getStatusStamp被调用:', status);
     switch (status) {
       case DiaryStatus.PENDING:
         return (
@@ -609,27 +510,68 @@ const AuditList: React.FC = () => {
   }, [showDetails, hasPermission, getStatusStamp]);
 
   // 处理选中日记的操作
-  const handleApprove = useCallback(() => {
+  const handleApprove = useCallback(async () => {
     if (selectedDiary) {
-      console.log('批准游记', selectedDiary.id);
-      // TODO: 实现批准逻辑
+      try {
+        await auditService.approveDiary(selectedDiary.id);
+        message.success('游记已批准');
+        // 刷新列表
+        fetchDiaries({
+          status: currentFilter,
+          searchKeyword,
+          searchType,
+          page: pagination.current,
+          pageSize: pagination.pageSize,
+        });
+        closeModal();
+      } catch (error) {
+        console.error('Failed to approve diary:', error);
+        message.error('批准游记失败');
+      }
     }
-  }, [selectedDiary]);
+  }, [selectedDiary, currentFilter, searchKeyword, searchType, pagination, fetchDiaries]);
 
-  const handleReject = useCallback(() => {
+  const handleReject = useCallback(async (reason: string) => {
     if (selectedDiary) {
-      console.log('拒绝游记', selectedDiary.id);
-      // TODO: 实现拒绝逻辑
+      try {
+        await auditService.rejectDiary(selectedDiary.id, reason);
+        message.success('游记已拒绝');
+        // 刷新列表
+        fetchDiaries({
+          status: currentFilter,
+          searchKeyword,
+          searchType,
+          page: pagination.current,
+          pageSize: pagination.pageSize,
+        });
+        closeModal();
+      } catch (error) {
+        console.error('Failed to reject diary:', error);
+        message.error('拒绝游记失败');
+      }
     }
-  }, [selectedDiary]);
+  }, [selectedDiary, currentFilter, searchKeyword, searchType, pagination, fetchDiaries]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (selectedDiary) {
-      console.log('删除游记', selectedDiary.id);
-      // TODO: 实现删除逻辑
+      try {
+        await auditService.deleteDiary(selectedDiary.id);
+        message.success('游记已删除');
+        // 刷新列表
+        fetchDiaries({
+          status: currentFilter,
+          searchKeyword,
+          searchType,
+          page: pagination.current,
+          pageSize: pagination.pageSize,
+        });
+        closeModal();
+      } catch (error) {
+        console.error('Failed to delete diary:', error);
+        message.error('删除游记失败');
+      }
     }
-  }, [selectedDiary]);
-
+  }, [selectedDiary, currentFilter, searchKeyword, searchType, pagination, fetchDiaries]);
 
   // 在返回前记录
   console.log('[渲染] AuditList - 即将返回JSX');
@@ -647,7 +589,7 @@ const AuditList: React.FC = () => {
                 <Select 
                   defaultValue="title" 
                   value={searchType}
-                  onChange={setSearchType}
+                  onChange={(value: 'title' | 'author' | 'content' | 'all') => setSearchType(value)}
                   style={{ width: 100}}
                 >
                   <Option value="title">标题</Option>
@@ -675,19 +617,22 @@ const AuditList: React.FC = () => {
             className="diary-list"
             loading={loading}
             itemLayout="vertical"
-            dataSource={filteredDiaries}
+            dataSource={diaries}
             renderItem={renderItem}
             pagination={{
-              pageSize: 5,
+              current: pagination.current,
+              pageSize: pagination.pageSize,
+              total: pagination.total,
               showTotal: (total) => `共 ${total} 条记录`,
               showSizeChanger: true,
-              pageSizeOptions: ['5', '10', '20']
+              pageSizeOptions: ['5', '10', '20'],
+              onChange: handlePaginationChange,
             }}
           />
         </Card>
 
         <CustomModal
-          modalRef={modalRef}
+          modalRef={modalRef as React.RefObject<HTMLDivElement>}
           visible={detailsModalVisible}
           selectedDiary={selectedDiary}
           hasPermission={hasPermission}
