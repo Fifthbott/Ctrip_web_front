@@ -407,8 +407,10 @@ const AuditList: React.FC = () => {
 
   // 展示详情
   const showDetails = useCallback((diary: TravelDiary) => {
+    console.log('[事件] showDetails 被调用', diary);
     setSelectedDiary(diary);
     setDetailsModalVisible(true);
+    console.log('[状态] 更新后:', { selectedDiary: diary, detailsModalVisible: true });
   }, []);
 
   // 使用自定义 Modal 替代 Ant Design Modal
@@ -422,6 +424,15 @@ const AuditList: React.FC = () => {
   // 点击模态框外部关闭
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // 检查点击事件是否来自预览模态框
+      const isFromPreviewModal = (event.target as HTMLElement)?.closest('.preview-modal-container');
+      
+      // 如果点击来自预览模态框，则不关闭详情模态框
+      if (isFromPreviewModal) {
+        return;
+      }
+      
+      // 否则执行原有逻辑
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
         closeModal();
       }
