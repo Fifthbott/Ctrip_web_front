@@ -22,7 +22,7 @@ const Login: React.FC = () => {
       const success = await login(values);
       if (success) {
         message.success('登录成功');
-        navigate('/admin/audit');
+        navigate('/admin');
       } else {
         setError('用户名或密码错误，请重试');
       }

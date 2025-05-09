@@ -7,7 +7,7 @@ import {
   BookOutlined,
   MenuOutlined
 } from '@ant-design/icons';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWindowSize } from '../../ResizeTracker';
 import './AdminLayout.scss';
@@ -15,20 +15,15 @@ import './AdminLayout.scss';
 const { Header, Content } = Layout;
 const { Text } = Typography;
 
-const AdminLayout: React.FC = () => {
-  console.log('[渲染] AdminLayout 组件渲染');
-  
+interface AdminLayoutProps {
+  children: React.ReactNode;
+}
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   // 获取窗口尺寸信息
   const windowSize = useWindowSize();
   const isMobile = windowSize.width <= 576;
-  
-  // 在组件渲染时记录
-  useEffect(() => {
-    if (window.__RESIZE_TRACKER__ && windowSize.isResizing) {
-      window.__RESIZE_TRACKER__.logRender('AdminLayout');
-    }
-  });
-  
+
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -100,7 +95,7 @@ const AdminLayout: React.FC = () => {
       <Content className='admin-layout'>
         <div className='admin-container'>
           <div className='content-container'>
-            <Outlet />
+            {children}
           </div>
         </div>
       </Content>
