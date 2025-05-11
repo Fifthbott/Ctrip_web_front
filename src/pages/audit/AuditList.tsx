@@ -446,7 +446,7 @@ const AuditList: React.FC = () => {
             } else {
               // 删除/uploads/前缀，并构建完整的下载URL
               const avatarPath = log.author.avatar.replace(/^\/uploads\//, '');
-              avatarUrl = `${API_BASE_URL}/download/${avatarPath}`;
+              avatarUrl = `${API_BASE_URL}/download/avatars/${avatarPath}`;
             }
           }
           
@@ -907,6 +907,11 @@ const AuditList: React.FC = () => {
                       placeholder="搜索游记"
                       onSearch={handleSearch}
                       className="search-input"
+                      enterButton={
+                        <span>
+                          <SearchOutlined /> 搜索
+                        </span>
+                      }
                     />
                   </Space>
                 </div>
