@@ -7,7 +7,8 @@ import {
   DeleteOutlined,
   CloseOutlined,
   ClockCircleOutlined,
-  ZoomInOutlined
+  ZoomInOutlined,
+  PlayCircleOutlined
 } from '@ant-design/icons';
 import './auditModal.scss';
 
@@ -36,6 +37,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
 }) => {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
+  const [videoPreviewVisible, setVideoPreviewVisible] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
 
@@ -43,6 +45,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
     if (!visible) {
       setPreviewVisible(false);
       setPreviewImage('');
+      setVideoPreviewVisible(false);
       setRejectModalVisible(false);
       setRejectReason('');
     }
@@ -55,10 +58,22 @@ const CustomModal: React.FC<CustomModalProps> = ({
     setPreviewVisible(true);
   };
 
+  // 处理视频预览
+  const handleVideoPreview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setVideoPreviewVisible(true);
+  };
+
   // 关闭图片预览
   const closePreview = (e: React.MouseEvent) => {
     e.stopPropagation();
     setPreviewVisible(false);
+  };
+
+  // 关闭视频预览
+  const closeVideoPreview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setVideoPreviewVisible(false);
   };
   
   // 显示拒绝对话框
@@ -90,40 +105,70 @@ const CustomModal: React.FC<CustomModalProps> = ({
     setRejectReason('');
   };
   
-  // 使用useMemo缓存图片渲染，将其提升到组件级别
-  const renderImages = useMemo(() => {
-    if (!selectedDiary || !selectedDiary.images || selectedDiary.images.length === 0) return null;
+  // 使用useMemo缓存图片和视频渲染，将其提升到组件级别
+  const renderImagesAndVideo = useMemo(() => {
+    // 如果没有图片和视频，则不显示
+    if ((!selectedDiary?.images || selectedDiary.images.length === 0) && !selectedDiary?.video) return null;
     
     return (
       <div className="diary-images-section">
         <div className="content-header">
-          <Typography.Title level={5}>游记图片</Typography.Title>
+          <Typography.Title level={5}>游记视频/图片</Typography.Title>
         </div>
+        
         <div className="diary-images">
           <div className="images-row">
-            {selectedDiary.images.map((image, index) => (
-              <div key={`${image}-${index}`} className="image-col">
+            {/* 视频缩略图 */}
+            {selectedDiary?.video && (
+              <div className="image-col">
                 <div 
-                  className="image-wrapper" 
-                  onClick={(e) => handlePreview(image, e)}
+                  className="image-wrapper video-wrapper" 
+                  onClick={handleVideoPreview}
                 >
-                  <img 
-                    className="diary-image" 
-                    src={image} 
-                    alt={`游记图片 ${index + 1}`} 
-                    loading="lazy"
-                  />
+                  <div className="video-thumbnail">
+                    <img 
+                      className="diary-image"
+                      src={selectedDiary.coverImage || (selectedDiary.images && selectedDiary.images.length > 0 ? selectedDiary.images[0] : '')}
+                      alt="视频封面"
+                      loading="lazy"
+                    />
+                    <div className="play-icon">
+                      <PlayCircleOutlined />
+                    </div>
+                  </div>
                   <div className="preview-overlay">
-                    <span className="preview-text"><ZoomInOutlined /> 预览</span>
+                    <span className="preview-text"><PlayCircleOutlined /> 播放视频</span>
                   </div>
                 </div>
               </div>
-            ))}
+            )}
+            
+            {/* 图片显示 */}
+            {selectedDiary?.images && selectedDiary.images.length > 0 && (
+              selectedDiary.images.map((image, index) => (
+                <div key={`${image}-${index}`} className="image-col">
+                  <div 
+                    className="image-wrapper" 
+                    onClick={(e) => handlePreview(image, e)}
+                  >
+                    <img 
+                      className="diary-image" 
+                      src={image} 
+                      alt={`游记图片 ${index + 1}`} 
+                      loading="lazy"
+                    />
+                    <div className="preview-overlay">
+                      <span className="preview-text"><ZoomInOutlined /> 预览</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
     );
-  }, [selectedDiary, handlePreview]);
+  }, [selectedDiary, handlePreview, handleVideoPreview]);
   
   // 渲染笔记详情部分
   const renderDiaryContent = () => {
@@ -167,7 +212,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
             </div>
           </div>
           
-          {renderImages}
+          {renderImagesAndVideo}
           
           {selectedDiary.rejectReason && (
             <div className="reject-reason-section">
@@ -232,6 +277,29 @@ const CustomModal: React.FC<CustomModalProps> = ({
                 className="preview-modal-image"
               />
               <button className="preview-modal-close" onClick={closePreview}>
+                <CloseOutlined />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 视频预览模态框 */}
+      {videoPreviewVisible && selectedDiary?.video && (
+        <div className="preview-modal-container video-preview-container">
+          <div className="preview-modal-backdrop" onClick={closeVideoPreview} />
+          <div className="preview-modal-content video-preview-content">
+            <div className="video-preview-wrapper">
+              <video 
+                className="preview-modal-video"
+                controls
+                autoPlay
+                preload="auto"
+                src={selectedDiary.video}
+              >
+                您的浏览器不支持视频播放
+              </video>
+              <button className="preview-modal-close" onClick={closeVideoPreview}>
                 <CloseOutlined />
               </button>
             </div>

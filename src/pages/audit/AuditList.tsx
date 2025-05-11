@@ -693,12 +693,36 @@ const AuditList: React.FC = () => {
             });
           }
           
+          // 处理视频URL
+          let videoUrl = null;
+          if (apiResponse.video_url) {
+            videoUrl = apiResponse.video_url.startsWith('http') 
+              ? apiResponse.video_url 
+              : `${API_BASE_URL}/download/${apiResponse.video_url}`;
+          }
+          
+          // 处理封面图片URL（优先使用cover_url作为视频封面）
+          let coverImageUrl = null;
+          if (apiResponse.cover_url) {
+            coverImageUrl = apiResponse.cover_url.startsWith('http') 
+              ? apiResponse.cover_url 
+              : `${API_BASE_URL}/download/${apiResponse.cover_url}`;
+          } else if (apiResponse.thumbnail_url) {
+            coverImageUrl = apiResponse.thumbnail_url.startsWith('http') 
+              ? apiResponse.thumbnail_url 
+              : `${API_BASE_URL}/download/${apiResponse.thumbnail_url}`;
+          } else if (images.length > 0) {
+            coverImageUrl = images[0];
+          }
+          
           // 更新游记内容
           const updatedDiary = {
             ...initialDiary,
             content: apiResponse.content || '暂无内容',
             rejectReason: rejectReason,
-            images: images
+            images: images,
+            video: videoUrl,
+            coverImage: coverImageUrl
           };
           
           console.log('更新后的游记对象:', updatedDiary);

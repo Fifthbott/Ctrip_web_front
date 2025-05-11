@@ -29,6 +29,7 @@ export interface TravelDiary {
   content: string;
   images: string[];
   video?: string;
+  coverImage?: string;
   author: {
     id: string;
     username: string;
