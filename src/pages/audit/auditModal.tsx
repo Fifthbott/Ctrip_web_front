@@ -69,7 +69,23 @@ const CustomModal: React.FC<CustomModalProps> = ({
 
   // 确认拒绝
   const confirmReject = () => {
-    handleReject(selectedDiary);
+    if (!rejectReason.trim()) {
+      Modal.warning({
+        title: '请输入拒绝理由',
+        content: '拒绝游记时必须提供拒绝理由'
+      });
+      return;
+    }
+    
+    if (selectedDiary) {
+      // 将拒绝理由添加到日记对象中
+      const diaryWithReason = {
+        ...selectedDiary,
+        rejectReason
+      };
+      handleReject(diaryWithReason);
+    }
+    
     setRejectModalVisible(false);
     setRejectReason('');
   };
@@ -153,13 +169,14 @@ const CustomModal: React.FC<CustomModalProps> = ({
           
           {renderImages}
           
-          {selectedDiary.status === DiaryStatus.REJECTED && selectedDiary.rejectReason && (
+          {selectedDiary.rejectReason && (
             <div className="reject-reason-section">
               <div className="content-header">
                 <Typography.Title level={5}>拒绝原因</Typography.Title>
               </div>
               <div className="reject-reason">
                 <Typography.Text type="danger">
+                  <CloseCircleOutlined style={{ marginRight: '8px' }} />
                   {selectedDiary.rejectReason}
                 </Typography.Text>
               </div>

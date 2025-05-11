@@ -70,6 +70,7 @@ export interface AuditDiariesListResponse {
       };
       created_at?: string;
       updated_at?: string;
+      reject_reason?: string;
       auditRecords: any[];
     }[];
     pagination: {
@@ -121,7 +122,7 @@ export const auditService = {
   },
 
   // 批准游记
-  approveDiary: async (diaryId: string): Promise<void> => {
+  approveDiary: async (diaryId: string): Promise<any> => {
     const response = await fetch(`${API_BASE_URL}/audits/travel-logs/${diaryId}`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -131,10 +132,16 @@ export const auditService = {
     if (!response.ok) {
       throw new Error('Failed to approve diary');
     }
+    
+    return response.json();
   },
 
   // 拒绝游记
-  rejectDiary: async (diaryId: string, reason: string): Promise<void> => {
+  rejectDiary: async (diaryId: string, reason: string): Promise<any> => {
+    if (!reason) {
+      throw new Error('Rejection reason is required');
+    }
+    
     const response = await fetch(`${API_BASE_URL}/audits/travel-logs/${diaryId}`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -147,10 +154,12 @@ export const auditService = {
     if (!response.ok) {
       throw new Error('Failed to reject diary');
     }
+    
+    return response.json();
   },
 
   // 删除游记
-  deleteDiary: async (diaryId: string): Promise<void> => {
+  deleteDiary: async (diaryId: string): Promise<any> => {
     const response = await fetch(`${API_BASE_URL}/audits/travel-logs/${diaryId}`, {
       method: 'DELETE',
       headers: getAuthHeaders()
@@ -159,5 +168,7 @@ export const auditService = {
     if (!response.ok) {
       throw new Error('Failed to delete diary');
     }
+    
+    return response.json();
   },
 }; 

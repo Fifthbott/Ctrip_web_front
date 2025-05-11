@@ -466,9 +466,10 @@ const AuditList: React.FC = () => {
             },
             status: log.status as DiaryStatus,
             createdAt: log.created_at || '',
-            updatedAt: log.updated_at || ''
+            updatedAt: log.updated_at || '',
+            rejectReason: log.reject_reason || ''
           };
-          
+          console.log('映射后的游记数据:', mappedDiary);
           return mappedDiary;
         });
         
@@ -500,9 +501,13 @@ const AuditList: React.FC = () => {
   // 审核操作相关函数
   const handleApproveDiary = useCallback(async (diary: TravelDiary) => {
     try {
-      await useAuditService.approveDiary(diary.id);
-      message.success('游记已批准');
-      fetchDiaries();
+      const response = await useAuditService.approveDiary(diary.id);
+      if (response.status === 'success') {
+        message.success(response.message || '游记已批准');
+        fetchDiaries();
+      } else {
+        message.error(response.message || '批准游记失败');
+      }
     } catch (error) {
       console.error('批准游记失败:', error);
       message.error('批准游记失败');
@@ -521,11 +526,15 @@ const AuditList: React.FC = () => {
     }
 
     try {
-      await useAuditService.rejectDiary(rejectDiaryId, rejectReason);
-      message.success('游记已拒绝');
-      setRejectModalVisible(false);
-      setRejectReason('');
-      fetchDiaries();
+      const response = await useAuditService.rejectDiary(rejectDiaryId, rejectReason);
+      if (response.status === 'success') {
+        message.success(response.message || '游记已拒绝');
+        setRejectModalVisible(false);
+        setRejectReason('');
+        fetchDiaries();
+      } else {
+        message.error(response.message || '拒绝游记失败');
+      }
     } catch (error) {
       console.error('拒绝游记失败:', error);
       message.error('拒绝游记失败');
@@ -541,9 +550,13 @@ const AuditList: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await useAuditService.deleteDiary(diary.id);
-          message.success('游记已删除');
-          fetchDiaries();
+          const response = await useAuditService.deleteDiary(diary.id);
+          if (response.status === 'success') {
+            message.success(response.message || '游记已删除');
+            fetchDiaries();
+          } else {
+            message.error(response.message || '删除游记失败');
+          }
         } catch (error) {
           console.error('删除游记失败:', error);
           message.error('删除游记失败');
@@ -639,21 +652,56 @@ const AuditList: React.FC = () => {
     useAuditService.getAuditDiaryDetail(diary.id)
       .then(response => {
         if (response.status === 'success') {
+          console.log('API返回的数据:', response.data.travel_log);
+          
+          // 使用类型断言处理API响应
+          const apiResponse = response.data.travel_log as any;
+          
+          // 从auditRecords中获取拒绝原因
+          let rejectReason = '';
+          if (apiResponse.auditRecords && apiResponse.auditRecords.length > 0) {
+            // 按时间倒序排序，找到最新的拒绝记录
+            const rejectRecord = apiResponse.auditRecords
+              .filter((record: any) => record.audit_status === 'rejected')
+              .sort((a: any, b: any) => new Date(b.audit_time).getTime() - new Date(a.audit_time).getTime())[0];
+            
+            if (rejectRecord) {
+              rejectReason = rejectRecord.reason || '';
+              console.log('找到拒绝原因:', rejectReason);
+            }
+          }
+          
+          // 处理图片URLs
+          let images = initialDiary.images;
+          
+          // 获取图片数组
+          if (apiResponse.image_urls && apiResponse.image_urls.length > 0) {
+            images = apiResponse.image_urls.map((img: string) => {
+              if (img.startsWith('http://') || img.startsWith('https://')) {
+                return img;
+              } else {
+                return `${API_BASE_URL}/download/${img}`;
+              }
+            });
+          } else if (apiResponse.images && apiResponse.images.length > 0) {
+            images = apiResponse.images.map((img: string) => {
+              if (img.startsWith('http://') || img.startsWith('https://')) {
+                return img;
+              } else {
+                return `${API_BASE_URL}/download/${img}`;
+              }
+            });
+          }
+          
           // 更新游记内容
           const updatedDiary = {
             ...initialDiary,
-            content: response.data.travel_log.content || '暂无内容',
-            // 如果服务器返回了更多图片，也更新图片
-            images: response.data.travel_log.images && response.data.travel_log.images.length > 0 
-              ? response.data.travel_log.images.map(img => {
-                  if (img.startsWith('http://') || img.startsWith('https://')) {
-                    return img;
-                  } else {
-                    return `${API_BASE_URL}/download/${img}`;
-                  }
-                }) 
-              : initialDiary.images
+            content: apiResponse.content || '暂无内容',
+            rejectReason: rejectReason,
+            images: images
           };
+          
+          console.log('更新后的游记对象:', updatedDiary);
           setSelectedDiary(updatedDiary);
         }
       })
@@ -776,7 +824,26 @@ const AuditList: React.FC = () => {
 
   const handleModalReject = (diary: TravelDiary | null) => {
     if (diary) {
-      showRejectModal(diary);
+      // 如果游记对象包含拒绝理由，直接使用它进行拒绝操作
+      if (diary.rejectReason) {
+        useAuditService.rejectDiary(diary.id, diary.rejectReason)
+          .then(response => {
+            if (response.status === 'success') {
+              message.success(response.message || '游记已拒绝');
+              fetchDiaries();
+              setDetailVisible(false); // 关闭详情模态框
+            } else {
+              message.error(response.message || '拒绝游记失败');
+            }
+          })
+          .catch(error => {
+            console.error('拒绝游记失败:', error);
+            message.error('拒绝游记失败');
+          });
+      } else {
+        // 否则显示拒绝理由对话框
+        showRejectModal(diary);
+      }
     }
   };
 
