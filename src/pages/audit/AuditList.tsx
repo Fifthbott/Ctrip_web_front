@@ -3,29 +3,31 @@ import {
   Typography, 
   Input, 
   Card,
+  List,
+  Select,
+  message,
+  Modal,
   Image,
   Avatar,
   Row,
   Col,
-  List,
-  Space,
-  Select,
-  message,
+  Space
 } from 'antd';
 import { 
-  DownOutlined,
   EyeOutlined,
   SearchOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  DownOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { DiaryStatus, TravelDiary, UserRole } from '../../types';
+import { DiaryStatus, TravelDiary } from '../../types'; 
 import './audit.scss';
-import CustomModal from '../audit/auditModal';
-import { auditService, GetDiariesParams } from '../../services/auditService';
-import {mockDiaries} from '../../mock/diaryMock';
+import CustomModal from './auditModal';
+import { useAuditService } from '../../services';
+import type { GetAuditDiariesParams } from '../../services/auditService';
+import { API_BASE_URL } from '../../services/auditService';
 
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
@@ -68,49 +70,80 @@ class ErrorBoundary extends React.Component<
     return this.props.children;
   }
 }
-
+// xs: 超小屏幕设备 < 576px
+// sm: 小屏幕设备 ≥ 576px
+// md: 中等屏幕设备 ≥ 768px
+// lg: 大屏幕设备 ≥ 992px
+// xl: 超大屏幕设备 ≥ 1200px
+// xxl: 超超大屏幕设备 ≥ 1600px
 // 预定义不同断点的Col属性，用固定值替代动态计算
 const colPropsMap = {
   image: {
     xs: { span: 24 },
     sm: { span: 8 },
-    md: { span: 6 },
+    md: { span: 8 },
+    lg: { span: 6 },
     className: "diary-image-col"
   },
   content: {
     xs: { span: 24 },
     sm: { span: 16 },
-    md: { span: 12 },
+    md: { span: 16 },
+    lg: { span: 12 },
     className: "diary-content-col"
   },
   actions: {
     xs: { span: 24 },
     sm: { span: 24 },
-    md: { span: 6 },
+    md: { span: 24 },
+    lg: { span: 6 },
     className: "diary-actions-col"
   }
 };
 
 // 创建一个稳定的行组件
-const StableRow = memo(({ children, ...props }: React.ComponentProps<typeof Row>) => (
-  <Row {...props}>{children}</Row>
+const StableRow = memo(({ children, className, ...props }: React.ComponentProps<typeof Row>) => (
+  <Row className={`diary-row ${className || ''}`} gutter={[16, 8]} align="top" {...props}>{children}</Row>
 ));
 
 // 创建一个稳定的列组件
-const StableCol = memo(({ children, ...props }: React.ComponentProps<typeof Col>) => (
-  <Col {...props}>{children}</Col>
+const StableCol = memo(({ children, className, ...props }: React.ComponentProps<typeof Col>) => (
+  <Col className={`${className || ''}`} {...props}>{children}</Col>
 ));
+
+// 添加一个媒体查询hook
+const useMediaQuery = (query: string) => {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
+    const listener = () => setMatches(media.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [matches, query]);
+
+  return matches;
+};
 
 // 创建一个稳定的 DiaryItem 组件，避免使用过多的 Ant Design 动态功能
 const DiaryItem = memo(({ 
   item, 
   showDetails, 
-  hasPermission, 
+  hasPermission,
+  onApprove,
+  onReject,
+  onDelete,
   getStatusStamp 
 }: { 
   item: TravelDiary; 
   showDetails: (diary: TravelDiary) => void;
   hasPermission: (action: 'approve' | 'reject' | 'delete') => boolean;
+  onApprove: (diary: TravelDiary) => void;
+  onReject: (diary: TravelDiary) => void;
+  onDelete: (diary: TravelDiary) => void;
   getStatusStamp: (status: DiaryStatus) => React.ReactNode;
 }) => {
   console.log('[渲染] DiaryItem组件 - ID:', item.id, '状态:', item.status);
@@ -151,21 +184,21 @@ const DiaryItem = memo(({
 
   const handleApprove = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('批准游记', item.id);
+    onApprove(item);
     setIsDropdownOpen(false);
-  }, [item.id]);
+  }, [item, onApprove]);
 
   const handleReject = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('拒绝游记', item.id);
+    onReject(item);
     setIsDropdownOpen(false);
-  }, [item.id]);
+  }, [item, onReject]);
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('删除游记', item.id);
+    onDelete(item);
     setIsDropdownOpen(false);
-  }, [item.id]);
+  }, [item, onDelete]);
 
   // 使用 useMemo 缓存下拉菜单内容
   const dropdownContent = useMemo(() => (
@@ -197,23 +230,29 @@ const DiaryItem = memo(({
     </div>
   ), [isDropdownOpen, item.status, hasPermission, handleViewDetails, handleApprove, handleReject, handleDelete]);
 
+  // 检测屏幕尺寸
+  const isLargeScreen = useMediaQuery('(min-width: 992px)');
+  
   // 使用 useMemo 缓存行内容
   const rowContent = useMemo(() => {
+    // 调试日志，检查内容数据
+    console.log(`DiaryItem ${item.id} 的内容:`, item.content);
+    
     const imageColProps = colPropsMap.image;
     const contentColProps = colPropsMap.content;
     const actionsColProps = colPropsMap.actions;
-    const rowProps = { gutter: [16, 16] as [number, number], className: "diary-row" };
 
     return (
-      <StableRow {...rowProps}>
+      <StableRow gutter={[16, 8]}>
         <StableCol {...imageColProps}>
-          {item.images.length > 0 ? (
+          {item.images && item.images.length > 0 ? (
             <div className="image-container">
               <Image 
                 src={item.images[0]} 
                 alt={item.title}
                 className="diary-cover-image"
                 preview={false}
+                loading="lazy"
               />
             </div>
           ) : (
@@ -224,37 +263,73 @@ const DiaryItem = memo(({
         </StableCol>
         <StableCol {...contentColProps}>
           <div className="custom-dropdown" ref={dropdownRef}>
-            <div className="diary-title" onClick={toggleDropdown}>
-              <Title level={5}>
-                {item.title}
+            <div className="diary-title" >
+              <Title level={5} >
+                <div className="diary-title-content" onClick={toggleDropdown} style={{cursor: 'pointer'}}>
+                {item.title }
                 <DownOutlined className={`dropdown-icon ${isDropdownOpen ? 'open' : ''}`} />
+                </div>
               </Title>
             </div>
             {dropdownContent}
           </div>
+          
+          {/* 小屏幕时在内容区的右下角显示状态图标 */}
+          {!isLargeScreen && (
+            <div 
+              style={{
+                position: 'absolute', 
+                bottom: '10px', 
+                right: '10px', 
+                zIndex: 5,
+                transform: 'scale(0.5)',
+                transformOrigin: 'bottom right',
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'flex-end'
+
+              }}
+              className="diary-actions-col"
+            >
+              <div className="diary-status-section">
+                {getStatusStamp(item.status)}
+              </div>
+            </div>
+          )}
+          
           <div className="diary-brief">
             <div className="diary-author">
-              <Avatar size="small" src={item.author.avatar} />
+              <Avatar 
+                size="small" 
+                src={item.author.avatar} 
+                alt={item.author.nickname}
+              />
               <span>{item.author.nickname}</span>
             </div>
             <div className="diary-excerpt">
-              {item.content.length > 100 
-                ? `${item.content.substring(0, 100)}...` 
-                : item.content}
+              {item.content 
+                ? `${item.content.length > 100 ? item.content.substring(0, 100) + '...' : item.content}`
+                : '暂无内容'}
             </div>
             <div className="diary-date">
-              创建时间: {new Date(item.createdAt).toLocaleString('zh-CN')}
+              {item.createdAt 
+                ? `创建时间: ${new Date(item.createdAt).toLocaleString('zh-CN')}` 
+                : '创建时间未知'}
             </div>
           </div>
         </StableCol>
-        <StableCol {...actionsColProps}>
-          <div className="diary-status-section">
-            {getStatusStamp(item.status)}
-          </div>
-        </StableCol>
+        
+        {/* 大屏幕时正常显示状态图标列 */}
+        {isLargeScreen && (
+          <StableCol {...actionsColProps}>
+            <div className="diary-status-section">
+              {getStatusStamp(item.status)}
+            </div>
+          </StableCol>
+        )}
       </StableRow>
     );
-  }, [item, dropdownRef, toggleDropdown, dropdownContent, getStatusStamp, isDropdownOpen]);
+  }, [item, item.content, item.images, item.title, item.createdAt, dropdownRef, toggleDropdown, dropdownContent, getStatusStamp, isDropdownOpen, isLargeScreen]);
 
   return (
     <List.Item className="diary-list-item">
@@ -266,6 +341,9 @@ const DiaryItem = memo(({
   return (
     prevProps.item.id === nextProps.item.id &&
     prevProps.item.status === nextProps.item.status &&
+    prevProps.item.title === nextProps.item.title &&
+    prevProps.item.content === nextProps.item.content &&
+    (prevProps.item.images?.[0] === nextProps.item.images?.[0]) &&
     prevProps.showDetails === nextProps.showDetails &&
     prevProps.hasPermission === nextProps.hasPermission &&
     prevProps.getStatusStamp === nextProps.getStatusStamp
@@ -287,7 +365,7 @@ const CustomTabs = memo(({
       {items.map(item => (
         <div
           key={item.key}
-          className={`custom-tab-item ${activeKey === item.key ? 'active' : ''}`}
+          className={`tab-item ${activeKey === item.key ? 'active' : ''}`}
           onClick={() => onChange(item.key)}
         >
           {item.label}
@@ -297,32 +375,351 @@ const CustomTabs = memo(({
   );
 });
 
-const AuditList: React.FC = () => {
+// 检查CustomModal的参数类型
+interface CustomModalProps {
+  modalRef: React.RefObject<HTMLDivElement>;
+  visible: boolean;
+  selectedDiary: TravelDiary | null;
+  hasPermission: (action: 'approve' | 'reject' | 'delete') => boolean;
+  handleApprove: (diary: TravelDiary) => void;
+  handleReject: (diary: TravelDiary) => void;
+  handleDelete: (diary: TravelDiary) => void;
+  getStatusStamp: (status: DiaryStatus) => React.ReactNode;
+  closeModal: () => void;
+}
 
-  const { user } = useAuth();
-  const [selectedDiary, setSelectedDiary] = useState<TravelDiary | null>(null);
-  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [searchType, setSearchType] = useState<'title' | 'author' | 'content' | 'all'>('title');
-  const [currentFilter, setCurrentFilter] = useState<DiaryStatus | 'all'>('all');
-  const [loading, setLoading] = useState(false);
+const AuditList: React.FC = () => {
+  const { isAdmin, isAuditor } = useAuth();
   const [diaries, setDiaries] = useState<TravelDiary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<DiaryStatus | 'all'>('all');
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 5,
-    total: 0,
+    pageSize: 10,
+    total: 0
   });
   
-  // 使用useRef存储组件挂载状态，防止在组件卸载后更新状态
-  const isMountedRef = useRef(true);
+  // 详情模态框状态
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [selectedDiary, setSelectedDiary] = useState<TravelDiary | null>(null);
+  
+  // 拒绝理由模态框状态
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectDiaryId, setRejectDiaryId] = useState<string>('');
+  const [rejectReason, setRejectReason] = useState('');
+  
+  // 模态框引用
+  const detailModalRef = useRef<HTMLDivElement>(null);
 
-  // 在组件卸载时更新挂载状态
+  // 刷新数据的函数
+  const fetchDiaries = useCallback(async (params?: GetAuditDiariesParams) => {
+    setLoading(true);
+    try {
+      const response = await useAuditService.getAuditDiaries({
+        status: params?.status || statusFilter,
+        search: params?.search || searchText,
+        page: params?.page || pagination.current,
+        limit: params?.limit || pagination.pageSize
+      });
+      
+      if (response.status === 'success') {
+        // 调试日志，查看服务器返回的游记数据
+        console.log('服务器返回的原始游记数据:', response.data.travel_logs);
+        
+        // 将服务器返回的数据映射到组件需要的格式
+        const mappedDiaries = response.data.travel_logs.map((log) => {
+          // 处理封面图片逻辑
+          let coverImage = '';
+          if (log.cover_url) {
+            coverImage = `${API_BASE_URL}/download/${log.cover_url}`;
+          } else if (log.first_image_url) {
+            coverImage = `${API_BASE_URL}/download/${log.first_image_url}`;
+          }
+          
+          // 处理作者头像
+          let avatarUrl = 'default_avatar.jpg';
+          if (log.author.avatar) {
+            // 检查是否已经是完整的URL
+            if (log.author.avatar.startsWith('http://') || log.author.avatar.startsWith('https://')) {
+              avatarUrl = log.author.avatar;
+            } else {
+              // 删除/uploads/前缀，并构建完整的下载URL
+              const avatarPath = log.author.avatar.replace(/^\/uploads\//, '');
+              avatarUrl = `${API_BASE_URL}/download/${avatarPath}`;
+            }
+          }
+          
+          // 检查content字段是否存在
+          console.log(`游记ID ${log.log_id} content字段:`, log.content);
+          
+          const mappedDiary = {
+            id: log.log_id.toString(),
+            title: log.title || '无标题',
+            content: log.content || '', // 直接使用服务器返回的内容，不设置默认值
+            images: coverImage ? [coverImage] : [],
+            author: {
+              id: log.author.user_id.toString(),
+              username: '',
+              nickname: log.author.nickname || '未知用户',
+              avatar: avatarUrl
+            },
+            status: log.status as DiaryStatus,
+            createdAt: log.created_at || '',
+            updatedAt: log.updated_at || ''
+          };
+          
+          return mappedDiary;
+        });
+        
+        // 查看映射后的游记数据
+        console.log('映射后的游记数据:', mappedDiaries);
+        
+        setDiaries(mappedDiaries);
+        setPagination({
+          current: response.data.pagination.page,
+          pageSize: response.data.pagination.limit,
+          total: response.data.pagination.total
+        });
+      } else {
+        message.error('获取游记列表失败');
+      }
+    } catch (error) {
+      console.error('获取游记列表错误:', error);
+      message.error('获取游记列表失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, searchText, pagination.current, pagination.pageSize]);
+
+  // 初始加载数据
   useEffect(() => {
-    console.log('[生命周期] AuditList - 组件挂载');
-    return () => {
-      console.log('[生命周期] AuditList - 组件卸载');
-      isMountedRef.current = false;
+    fetchDiaries();
+  }, [fetchDiaries]);
+
+  // 审核操作相关函数
+  const handleApproveDiary = useCallback(async (diary: TravelDiary) => {
+    try {
+      await useAuditService.approveDiary(diary.id);
+      message.success('游记已批准');
+      fetchDiaries();
+    } catch (error) {
+      console.error('批准游记失败:', error);
+      message.error('批准游记失败');
+    }
+  }, [fetchDiaries]);
+
+  const showRejectModal = useCallback((diary: TravelDiary) => {
+    setRejectDiaryId(diary.id);
+    setRejectModalVisible(true);
+  }, []);
+
+  const handleRejectConfirm = useCallback(async () => {
+    if (!rejectReason.trim()) {
+      message.warning('请输入拒绝理由');
+      return;
+    }
+
+    try {
+      await useAuditService.rejectDiary(rejectDiaryId, rejectReason);
+      message.success('游记已拒绝');
+      setRejectModalVisible(false);
+      setRejectReason('');
+      fetchDiaries();
+    } catch (error) {
+      console.error('拒绝游记失败:', error);
+      message.error('拒绝游记失败');
+    }
+  }, [rejectDiaryId, rejectReason, fetchDiaries]);
+
+  const handleDeleteDiary = useCallback(async (diary: TravelDiary) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除 "${diary.title}" 吗？此操作不可逆。`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await useAuditService.deleteDiary(diary.id);
+          message.success('游记已删除');
+          fetchDiaries();
+        } catch (error) {
+          console.error('删除游记失败:', error);
+          message.error('删除游记失败');
+        }
+      }
+    });
+  }, [fetchDiaries]);
+
+  // 权限检查函数
+  const hasPermission = useCallback((action: 'approve' | 'reject' | 'delete') => {
+    if (action === 'delete') {
+      return isAdmin;
+    }
+    return isAdmin || isAuditor;
+  }, [isAdmin, isAuditor]);
+
+  // 搜索和筛选处理
+  const handleSearch = useCallback((value: string) => {
+    setSearchText(value);
+    setPagination(prev => ({ ...prev, current: 1 })); // 重置到第一页
+    fetchDiaries({ search: value, page: 1 });
+  }, [fetchDiaries]);
+
+  const handleStatusChange = useCallback((value: DiaryStatus | 'all') => {
+    setStatusFilter(value);
+    setPagination(prev => ({ ...prev, current: 1 })); // 重置到第一页
+    fetchDiaries({ status: value, page: 1 });
+  }, [fetchDiaries]);
+
+  const handlePageChange = useCallback((page: number, pageSize?: number) => {
+    setPagination(prev => ({ 
+      ...prev, 
+      current: page,
+      pageSize: pageSize || prev.pageSize
+    }));
+    fetchDiaries({ page, limit: pageSize || pagination.pageSize });
+  }, [fetchDiaries, pagination.pageSize]);
+
+  // 详情查看处理
+  const showDetails = useCallback((diary: TravelDiary) => {
+    // 处理封面图片和可能的其他图片URLs
+    const processImages = () => {
+      // 如果已经是完整的URL数组，直接返回
+      if (diary.images.length > 0 && diary.images[0].startsWith('http')) {
+        return diary.images;
+      }
+      
+      // 否则，将每个图片路径转换为下载URL
+      return diary.images.map(img => {
+        if (img.startsWith('http://') || img.startsWith('https://')) {
+          return img;
+        } else {
+          return `${API_BASE_URL}/download/${img}`;
+        }
+      });
     };
+    
+    // 处理作者头像
+    const processAvatar = () => {
+      const avatar = diary.author.avatar;
+      if (!avatar || avatar === 'default_avatar.jpg') {
+        return avatar;
+      }
+      
+      if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+        return avatar;
+      } else {
+        // 删除/uploads/前缀
+        const avatarPath = avatar.replace(/^\/uploads\//, '');
+        return `${API_BASE_URL}/download/${avatarPath}`;
+      }
+    };
+    
+    // 创建初始详情对象
+    const initialDiary = {
+      ...diary,
+      images: processImages(),
+      author: {
+        ...diary.author,
+        avatar: processAvatar()
+      }
+    };
+    
+    // 先显示模态框和当前数据
+    setSelectedDiary(initialDiary);
+    setDetailVisible(true);
+    
+    // 无论如何尝试获取完整内容
+    // 显示加载状态
+    const loadingMessage = message.loading('获取完整内容...', 0);
+    
+    // 尝试获取完整游记内容
+    useAuditService.getAuditDiaryDetail(diary.id)
+      .then(response => {
+        if (response.status === 'success') {
+          // 更新游记内容
+          const updatedDiary = {
+            ...initialDiary,
+            content: response.data.travel_log.content || '暂无内容',
+            // 如果服务器返回了更多图片，也更新图片
+            images: response.data.travel_log.images && response.data.travel_log.images.length > 0 
+              ? response.data.travel_log.images.map(img => {
+                  if (img.startsWith('http://') || img.startsWith('https://')) {
+                    return img;
+                  } else {
+                    return `${API_BASE_URL}/download/${img}`;
+                  }
+                }) 
+              : initialDiary.images
+          };
+          setSelectedDiary(updatedDiary);
+        }
+      })
+      .catch(error => {
+        console.error('获取游记详情失败:', error);
+      })
+      .finally(() => {
+        loadingMessage();
+      });
+    
+    // 预加载图片
+    const preloadImages = async () => {
+      if (initialDiary.images.length > 0) {
+        try {
+          // 使用超时Promise避免图片加载时间过长
+          const timeout = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+          
+          // 创建预加载函数
+          const preloadImage = (src: string) => {
+            return new Promise<void>((resolve) => {
+              const img = document.createElement('img');
+              img.onload = () => resolve();
+              img.onerror = () => resolve(); // 即使加载失败也继续
+              img.src = src;
+            });
+          };
+          
+          // 等待所有图片加载完成或超时
+          await Promise.race([
+            Promise.all(initialDiary.images.map(src => preloadImage(src))),
+            timeout(2000) // 最多等待2秒
+          ]);
+        } catch (err) {
+          console.warn('图片预加载失败', err);
+        }
+      }
+    };
+    
+    // 执行预加载
+    preloadImages();
+  }, []);
+
+  // 获取状态标签
+  const getStatusStamp = useCallback((status: DiaryStatus) => {
+    switch (status) {
+      case DiaryStatus.APPROVED:
+        return (
+          <div className="status-stamp approved">
+            <span className="status-label">已通过</span>
+          </div>
+        );
+      case DiaryStatus.REJECTED:
+        return (
+          <div className="status-stamp rejected">
+            <span className="status-label">已拒绝</span>
+          </div>
+        );
+      case DiaryStatus.PENDING:
+        return (
+          <div className="status-stamp pending">
+            <span className="status-label">待审核</span>
+          </div>
+        );
+      default:
+        return null;
+    }
   }, []);
 
   // Status filter options - 移动到组件内部
@@ -333,329 +730,153 @@ const AuditList: React.FC = () => {
     { value: DiaryStatus.REJECTED, label: '未通过' }
   ], []);
 
-  // 获取日记列表数据
-  const fetchDiaries = useCallback(async (params: GetDiariesParams) => {
-    // try {
-    //   setLoading(true);
-    //   const response = await auditService.getDiaries(params);
-    //   if (isMountedRef.current) {
-    //     setDiaries(response.data);
-    //     setPagination(prev => ({
-    //       ...prev,
-    //       total: response.total,
-    //     }));
-    //   }
-    // } catch (error) {
-    //   console.error('Failed to fetch diaries:', error);
-    //   message.error('获取游记列表失败');
-    // } finally {
-    //   if (isMountedRef.current) {
-    //     setLoading(false);
-    //   }
-    // }
-    if (isMountedRef.current) {
-      setDiaries(mockDiaries);
-      setPagination(prev => ({
-        ...prev,
-        total: mockDiaries.length,
-      }));
-    }
-  }, []);
-
-  // 监听筛选条件变化，重新获取数据
-  useEffect(() => {
-    const params: GetDiariesParams = {
-      status: currentFilter,
-      searchKeyword,
-      searchType,
-      page: pagination.current,
-      pageSize: pagination.pageSize,
-    };
-    fetchDiaries(params);
-  }, [currentFilter, searchKeyword, searchType, pagination.current, pagination.pageSize, fetchDiaries]);
-
-  // Handle search
-  const handleSearch = useCallback((value: string) => {
-    console.log('[操作] AuditList - 执行搜索:', value);
-    setSearchKeyword(value);
-    setPagination(prev => ({ ...prev, current: 1 }));
-  }, []);
-
-  // 处理分页变化
-  const handlePaginationChange = useCallback((page: number, pageSize?: number) => {
-    setPagination(prev => ({
-      ...prev,
-      current: page,
-      pageSize: pageSize || prev.pageSize,
-    }));
-  }, []);
-
-  // 检查用户权限 - 使用 useCallback 避免重新创建
-  const hasPermission = useCallback((action: 'approve' | 'reject' | 'delete'): boolean => {
-    if (!user) return false;
-    
-    if (user.role === UserRole.ADMIN) {
-      return true;
-    }
-    
-    if (user.role === UserRole.AUDITOR) {
-      return action === 'approve' || action === 'reject';
-    }
-    
-    return false;
-  }, [user]);
-
-  // 展示详情
-  const showDetails = useCallback((diary: TravelDiary) => {
-    console.log('[事件] showDetails 被调用', diary);
-    setSelectedDiary(diary);
-    setDetailsModalVisible(true);
-    console.log('[状态] 更新后:', { selectedDiary: diary, detailsModalVisible: true });
-  }, []);
-
-  // 使用自定义 Modal 替代 Ant Design Modal
-  const modalRef = useRef<HTMLDivElement>(null);
-  
-  // 关闭模态框
-  const closeModal = useCallback(() => {
-    setDetailsModalVisible(false);
-  }, []);
-  
-  // 点击模态框外部关闭
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // 检查点击事件是否来自预览模态框
-      const isFromPreviewModal = (event.target as HTMLElement)?.closest('.preview-modal-container');
-      
-      // 如果点击来自预览模态框，则不关闭详情模态框
-      if (isFromPreviewModal) {
-        return;
-      }
-      
-      // 否则执行原有逻辑
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        closeModal();
-      }
-    };
-    
-    if (detailsModalVisible) {
-      document.addEventListener('mousedown', handleClickOutside);
-      // 禁止背景滚动
-      document.body.style.overflow = 'hidden';
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      // 恢复背景滚动
-      document.body.style.overflow = 'auto';
-    };
-  }, [detailsModalVisible, closeModal]);
-
-  // 渲染状态标签
-  const getStatusStamp = useCallback((status: DiaryStatus) => {
-    switch (status) {
-      case DiaryStatus.PENDING:
-        return (
-          <div className="status-stamp pending-stamp">
-            <div className="status-label">待审核</div>
-          </div>
-        );
-      case DiaryStatus.APPROVED:
-        return (
-          <div className="status-stamp approved-stamp">
-            <div className="status-label">已通过</div>
-          </div>
-        );
-      case DiaryStatus.REJECTED:
-        return (
-          <div className="status-stamp rejected-stamp">
-            <div className="status-label">未通过</div>
-          </div>
-        );
-      case DiaryStatus.DELETED:
-        return (
-          <div className="status-stamp deleted-stamp">
-            <div className="status-label">已删除</div>
-          </div>
-        );
-      default:
-        return <div className="status-stamp">未知</div>;
-    }
-  }, []);
-
-  // 处理Tab切换
-  const handleTabChange = useCallback((key: string) => {
-    console.log('[操作] AuditList - 切换标签:', key);
-    setCurrentFilter(key as DiaryStatus | 'all');
-  }, []);
-  
   // 使用 useMemo 创建 Tabs 的 items 配置
-  const tabItems = useMemo(() => 
-    statusOptions.map(option => ({
+  const tabItems = useMemo(() => (
+    statusOptions.map((option) => ({
       key: option.value,
-      label: option.label
+      label: option.label,
     }))
-  , [statusOptions]);
+  ), [statusOptions]);
 
-  // 使用 useMemo 缓存自定义 Tabs 组件
   const tabsComponent = useMemo(() => (
     <CustomTabs 
-      activeKey={currentFilter} 
-      onChange={handleTabChange} 
+      activeKey={statusFilter} 
+      onChange={(key: string) => handleStatusChange(key as DiaryStatus | 'all')} 
       items={tabItems}
     />
-  ), [currentFilter, handleTabChange, tabItems]);
+  ), [statusFilter, handleStatusChange, tabItems]);
 
   // 创建列表项渲染器
   const renderItem = useCallback((item: TravelDiary) => {
-    console.log('[渲染项] AuditList - 渲染列表项:', item.id);
     return (
       <DiaryItem 
         key={item.id}
-        item={item} 
+        item={item}
         showDetails={showDetails}
         hasPermission={hasPermission}
+        onApprove={handleApproveDiary}
+        onReject={showRejectModal}
+        onDelete={handleDeleteDiary}
         getStatusStamp={getStatusStamp}
       />
     );
-  }, [showDetails, hasPermission, getStatusStamp]);
-
-  // 处理选中日记的操作
-  const handleApprove = useCallback(async () => {
-    if (selectedDiary) {
-      try {
-        await auditService.approveDiary(selectedDiary.id);
-        message.success('游记已批准');
-        // 刷新列表
-        fetchDiaries({
-          status: currentFilter,
-          searchKeyword,
-          searchType,
-          page: pagination.current,
-          pageSize: pagination.pageSize,
-        });
-        closeModal();
-      } catch (error) {
-        console.error('Failed to approve diary:', error);
-        message.error('批准游记失败');
-      }
-    }
-  }, [selectedDiary, currentFilter, searchKeyword, searchType, pagination, fetchDiaries]);
-
-  const handleReject = useCallback(async (reason: string) => {
-    if (selectedDiary) {
-      try {
-        await auditService.rejectDiary(selectedDiary.id, reason);
-        message.success('游记已拒绝');
-        // 刷新列表
-        fetchDiaries({
-          status: currentFilter,
-          searchKeyword,
-          searchType,
-          page: pagination.current,
-          pageSize: pagination.pageSize,
-        });
-        closeModal();
-      } catch (error) {
-        console.error('Failed to reject diary:', error);
-        message.error('拒绝游记失败');
-      }
-    }
-  }, [selectedDiary, currentFilter, searchKeyword, searchType, pagination, fetchDiaries]);
-
-  const handleDelete = useCallback(async () => {
-    if (selectedDiary) {
-      try {
-        await auditService.deleteDiary(selectedDiary.id);
-        message.success('游记已删除');
-        // 刷新列表
-        fetchDiaries({
-          status: currentFilter,
-          searchKeyword,
-          searchType,
-          page: pagination.current,
-          pageSize: pagination.pageSize,
-        });
-        closeModal();
-      } catch (error) {
-        console.error('Failed to delete diary:', error);
-        message.error('删除游记失败');
-      }
-    }
-  }, [selectedDiary, currentFilter, searchKeyword, searchType, pagination, fetchDiaries]);
+  }, [showDetails, hasPermission, handleApproveDiary, showRejectModal, handleDeleteDiary, getStatusStamp]);
 
   // 在返回前记录
-  console.log('[渲染] AuditList - 即将返回JSX');
-  
-  // 组件根元素返回
+  useEffect(() => {
+    console.log('[渲染] AuditList - 渲染完成', { diaries, pagination, loading });
+  }, [diaries, pagination, loading]);
+
+  // 处理自定义模态框的函数
+  const handleModalApprove = (diary: TravelDiary | null) => {
+    if (diary) {
+      handleApproveDiary(diary);
+    }
+  };
+
+  const handleModalReject = (diary: TravelDiary | null) => {
+    if (diary) {
+      showRejectModal(diary);
+    }
+  };
+
+  const handleModalDelete = (diary: TravelDiary | null) => {
+    if (diary) {
+      handleDeleteDiary(diary);
+    }
+  };
+
   return (
-    <ErrorBoundary>
-      <div className="audit-list-container">
-        <Card className="audit-card"> 
-          <div className="audit-list-toolbar">
-            <Title level={4}>游记审核列表</Title>
-            
-            <div className="search-area" >
-              <Space>
-                <Select 
-                  defaultValue="title" 
-                  value={searchType}
-                  onChange={(value: 'title' | 'author' | 'content' | 'all') => setSearchType(value)}
-                  style={{ width: 100}}
-                >
-                  <Option value="title">标题</Option>
-                  <Option value="author">作者</Option>
-                  <Option value="content">内容</Option>
-                  <Option value="all">全部</Option>
-                </Select>
-                <div style={{ flex: 1, minWidth: 0 }}> 
-                <Search 
-                  placeholder="请输入搜索关键词"
-                  allowClear
-                  enterButton={<span><SearchOutlined /> 搜索</span>}
-                  size="middle"
-                  onSearch={handleSearch}
-                  style={{ width: '100%' }}
-                />
-                </div>
-              </Space>
+    <div className="audit-page">
+      <ErrorBoundary>
+        <Card className="audit-header-card">
+          <div className="audit-header">
+            <div className="title-section">
+              <Title level={3}>旅游日记审核管理</Title>
+              <Paragraph>
+                对用户提交的旅游日记进行审核管理，维护平台内容质量
+              </Paragraph>
             </div>
             
-            {tabsComponent}
+            <div className="action-section">
+              <div className="audit-list-toolbar">
+                <div className="search-area">
+                  <Space size="middle">
+                    <Select
+                      defaultValue="all"
+                      value={statusFilter}
+                      style={{ width: 120 }}
+                      onChange={handleStatusChange}
+                    >
+                      {statusOptions.map(option => (
+                        <Option key={option.value} value={option.value}>{option.label}</Option>
+                      ))}
+                    </Select>
+                    <Search
+                      placeholder="搜索游记"
+                      onSearch={handleSearch}
+                      className="search-input"
+                    />
+                  </Space>
+                </div>
+              </div>
+            </div>
           </div>
+          
+          {tabsComponent}
+        </Card>
 
+        <Card 
+          className="diary-list-card"
+          loading={loading}
+        >
           <List
             className="diary-list"
-            loading={loading}
-            itemLayout="vertical"
             dataSource={diaries}
             renderItem={renderItem}
+            rowKey="id"
             pagination={{
               current: pagination.current,
               pageSize: pagination.pageSize,
               total: pagination.total,
-              showTotal: (total) => `共 ${total} 条记录`,
               showSizeChanger: true,
               pageSizeOptions: ['5', '10', '20'],
-              onChange: handlePaginationChange,
+              onChange: handlePageChange,
             }}
           />
+          
+          <CustomModal
+            modalRef={detailModalRef as React.RefObject<HTMLDivElement>}
+            visible={detailVisible}
+            selectedDiary={selectedDiary}
+            hasPermission={hasPermission}
+            handleApprove={handleModalApprove}
+            handleReject={handleModalReject}
+            handleDelete={handleModalDelete}
+            getStatusStamp={getStatusStamp}
+            closeModal={() => setDetailVisible(false)}
+          />
+          
+          <Modal
+            title="拒绝理由"
+            open={rejectModalVisible}
+            onOk={handleRejectConfirm}
+            onCancel={() => {
+              setRejectModalVisible(false);
+              setRejectReason('');
+            }}
+          >
+            <Input.TextArea
+              rows={4}
+              placeholder="请输入拒绝理由"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </Modal>
         </Card>
-
-        <CustomModal
-          modalRef={modalRef as React.RefObject<HTMLDivElement>}
-          visible={detailsModalVisible}
-          selectedDiary={selectedDiary}
-          hasPermission={hasPermission}
-          handleApprove={handleApprove}
-          handleReject={handleReject}
-          handleDelete={handleDelete}
-          getStatusStamp={getStatusStamp}
-          closeModal={closeModal}
-        />
-      </div>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </div>
   );
-};
+}
 
-export default memo(AuditList); 
+export default AuditList; 

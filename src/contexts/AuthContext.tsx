@@ -1,80 +1,93 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, LoginFormValues, UserRole } from '../types';
-
-
-const users = [{
-  id: '1',
-  username: 'admin',
-  password: 'admin123',
-  role: UserRole.ADMIN,
-  name: '管理员',
-  avatar: 'https://joeschmoe.io/api/v1/random'
-},
-{
-  id: '2',
-  username: 'auditor',
-  password: 'auditor123',
-  role: UserRole.AUDITOR,
-  name: '审核员',
-  avatar: 'https://joeschmoe.io/api/v1/random'
-}]
+import { UserRole } from '../types';
+import { useAuthService } from '../services';
+import { LoginParams } from '../services/authService';
 
 interface AuthContextType {
-  user: User | null;
-  login: (values: LoginFormValues) => Promise<boolean>;
+  user: any | null;
+  login: (values: LoginParams) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
+  isAdmin: boolean;
+  isAuditor: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isAuditor, setIsAuditor] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check for existing user in localStorage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-      } catch (e) {
-        localStorage.removeItem('user');
-      }
+    // 检查是否已登录
+    if (useAuthService.isAuthenticated()) {
+      const storedUser = useAuthService.getStoredUser();
+      setUser(storedUser);
+      setIsAuthenticated(true);
+      setIsAdmin(useAuthService.isAdmin());
+      setIsAuditor(useAuthService.isAuditor());
     }
   }, []);
 
-  const login = async (values: LoginFormValues): Promise<boolean> => {
-    // In a real app, this would be an API call
-    const { username, password } = values;
-    
-    // Find user in mock data
-    const foundUser = users.find(
-      (user) => user.username === username && user.password === password
-    );
+  const login = async (values: LoginParams): Promise<boolean> => {
+    try {
+      console.log('Attempting login with:', { username: values.username }); // 不记录密码
+      
+      // 调用登录服务
+      const response = await useAuthService.login(values);
+      console.log('Login response:', {
+        status: response.status,
+        hasToken: !!response.data?.token,
+        hasUser: !!response.data?.user
+      });
 
-    if (foundUser) {
-      // Store user in state and localStorage
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(foundUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-      return true;
+      if (response.status === 'success' && response.data.token) {
+        const userData = response.data.user;
+        setUser(userData);
+        setIsAuthenticated(true);
+        setIsAdmin(userData.role === UserRole.ADMIN);
+        setIsAuditor(userData.role === UserRole.ADMIN || userData.role === UserRole.AUDITOR);
+        
+        // 验证 token 是否正确存储
+        const storedToken = localStorage.getItem('token');
+        console.log('Stored token:', storedToken);
+        
+        if (!storedToken) {
+          console.error('Token was not stored properly');
+          return false;
+        }
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('登录失败:', error);
+      return false;
     }
-    
-    return false;
   };
 
   const logout = () => {
+    // 调用登出服务
+    useAuthService.logout();
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('user');
+    setIsAdmin(false);
+    setIsAuditor(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        login, 
+        logout, 
+        isAuthenticated,
+        isAdmin,
+        isAuditor
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

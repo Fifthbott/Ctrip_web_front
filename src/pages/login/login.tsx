@@ -3,10 +3,14 @@ import { Form, Input, Button, Card, Typography, message, Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LoginFormValues } from '../../types';
 import './login.scss';
 
 const { Title, Text } = Typography;
+
+interface LoginFormValues {
+  username: string;
+  password: string;
+}
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -22,7 +26,7 @@ const Login: React.FC = () => {
       const success = await login(values);
       if (success) {
         message.success('登录成功');
-        navigate('/admin');
+        navigate('/admin/audit');
       } else {
         setError('用户名或密码错误，请重试');
       }
@@ -99,7 +103,7 @@ const Login: React.FC = () => {
             </Text>
             <br />
             <Text type="secondary">
-              审核员账号: auditor / auditor123
+              审核员账号: auditor / audit123
             </Text>
           </div>
         </Form>
