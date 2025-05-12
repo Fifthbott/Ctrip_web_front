@@ -416,25 +416,32 @@ const AuditList: React.FC = () => {
   // 刷新数据的函数
   const fetchDiaries = useCallback(async (params?: GetAuditDiariesParams) => {
     setLoading(true);
+    
+    // 创建默认参数
+    const defaultParams: GetAuditDiariesParams = {
+      status: statusFilter !== 'all' ? statusFilter : undefined,
+      search: searchText || undefined,
+      page: pagination.current,
+      limit: pagination.pageSize
+    };
+    
+    // 合并参数
+    const queryParams = { ...defaultParams, ...params };
+    
     try {
-      // 构建搜索参数
-      let searchParam = params?.search || searchText;
-      if (searchType !== 'all' && searchParam) {
-        searchParam = `${searchType}:${searchParam}`;
-      }
-
-      const response = await useAuditService.getAuditDiaries({
-        status: params?.status || statusFilter,
-        search: searchParam,
-        page: params?.page || pagination.current,
-        limit: params?.limit || pagination.pageSize
-      });
+      console.log('开始获取游记列表, 参数:', queryParams);
+      const response = await useAuditService.getAuditDiaries(queryParams);
+      console.log('获取游记列表成功, 返回数据:', response);
       
       if (response.status === 'success') {
-        // 调试日志，查看服务器返回的游记数据
-        console.log('服务器返回的原始游记数据:', response.data.travel_logs);
+        // 更新分页信息
+        setPagination({
+          current: response.data.pagination.page,
+          pageSize: response.data.pagination.limit,
+          total: response.data.pagination.total
+        });
         
-        // 将服务器返回的数据映射到组件需要的格式
+        // 处理日记数据
         const mappedDiaries = response.data.travel_logs.map((log) => {
           // 处理封面图片逻辑
           let coverImage = '';
@@ -442,6 +449,12 @@ const AuditList: React.FC = () => {
             coverImage = `${API_BASE_URL}/download/${log.cover_url}`;
           } else if (log.first_image_url) {
             coverImage = `${API_BASE_URL}/download/${log.first_image_url}`;
+          } else if (log.image_urls && log.image_urls.length > 0) {
+            // 如果没有cover_url但有image_urls，使用第一张图片作为封面
+            const firstImage = log.image_urls[0];
+            coverImage = firstImage.startsWith('http') 
+              ? firstImage 
+              : `${API_BASE_URL}/download/${firstImage}`;
           }
           
           // 处理作者头像
@@ -484,11 +497,6 @@ const AuditList: React.FC = () => {
         console.log('映射后的游记数据:', mappedDiaries);
         
         setDiaries(mappedDiaries);
-        setPagination({
-          current: response.data.pagination.page,
-          pageSize: response.data.pagination.limit,
-          total: response.data.pagination.total
-        });
       } else {
         message.error('获取游记列表失败');
       }
@@ -498,7 +506,7 @@ const AuditList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchText, searchType, pagination.current, pagination.pageSize]);
+  }, [statusFilter, searchText, pagination.current, pagination.pageSize]);
 
   // 初始加载数据
   useEffect(() => {

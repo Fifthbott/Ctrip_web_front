@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { DiaryStatus, TravelDiary } from "../../types";
 import { 
     Typography, 
@@ -6,7 +6,6 @@ import {
     Image,
     Avatar
   } from 'antd';
-  import './auditList.module.scss'
 
  const { Title, Paragraph } = Typography;
 
@@ -14,12 +13,6 @@ import {
     diary: TravelDiary;
     getStatusStamp: (status: DiaryStatus) => React.ReactNode;
   }) => {
-    
- // 跟踪组件渲染次数
-    const renderCount = useRef(0);
-    useEffect(() => {
-      renderCount.current += 1;
-    });
     
     // 使用图片列表，避免使用可能导致循环渲染的组件
     const imagesPreview = useMemo(() => {

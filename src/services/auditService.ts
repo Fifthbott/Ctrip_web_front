@@ -61,6 +61,7 @@ export interface AuditDiariesListResponse {
       content?: string;
       first_image_url: string | null;
       cover_url: string | null;
+      image_urls?: string[];
       status: DiaryStatus;
       like_count: number;
       author: {

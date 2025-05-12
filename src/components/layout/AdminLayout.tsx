@@ -7,7 +7,6 @@ import {
   BookOutlined,
   MenuOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWindowSize } from '../../ResizeTracker';
 import './AdminLayout.scss';
@@ -28,7 +27,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const isMobile = windowSize.width <= 576;
 
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
