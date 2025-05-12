@@ -92,7 +92,7 @@ export const mockAuthService = {
   // 检查当前用户是否是审核员
   isAuditor: (): boolean => {
     const user = mockAuthService.getStoredUser();
-    return user?.role === 'admin' || user?.role === 'auditor';
+    return user?.role === 'admin' || user?.role === 'reviewer';
   },
 
   // 添加请求的认证头

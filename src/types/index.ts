@@ -1,7 +1,7 @@
 // User roles
 export enum UserRole {
   ADMIN = 'admin',
-  AUDITOR = 'auditor'
+  AUDITOR = 'reviewer'
 }
 
 // User interface

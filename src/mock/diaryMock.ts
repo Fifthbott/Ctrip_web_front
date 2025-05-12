@@ -121,12 +121,36 @@ export const getMockDiaries = (params: {
   
   // 搜索功能
   if (params.search) {
-    const searchLower = params.search.toLowerCase();
-    filteredDiaries = filteredDiaries.filter(diary => 
-      diary.title.toLowerCase().includes(searchLower) || 
-      diary.content.toLowerCase().includes(searchLower) ||
-      diary.author.nickname.toLowerCase().includes(searchLower)
-    );
+    // 支持searchType:searchText格式
+    const searchParam = params.search;
+    let searchType = 'all';
+    let searchText = searchParam;
+    
+    // 尝试解析搜索类型和搜索文本
+    if (searchParam.includes(':')) {
+      const [type, text] = searchParam.split(':');
+      searchType = type.toLowerCase();
+      searchText = text;
+    }
+    
+    const searchLower = searchText.toLowerCase();
+    
+    filteredDiaries = filteredDiaries.filter(diary => {
+      // 根据搜索类型过滤
+      switch (searchType) {
+        case 'title':
+          return diary.title.toLowerCase().includes(searchLower);
+        case 'content':
+          return diary.content.toLowerCase().includes(searchLower);
+        case 'author':
+          return diary.author.nickname.toLowerCase().includes(searchLower);
+        case 'all':
+        default:
+          return diary.title.toLowerCase().includes(searchLower) || 
+                 diary.content.toLowerCase().includes(searchLower) ||
+                 diary.author.nickname.toLowerCase().includes(searchLower);
+      }
+    });
   }
   
   // 分页

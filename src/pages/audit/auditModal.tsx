@@ -146,22 +146,22 @@ const CustomModal: React.FC<CustomModalProps> = ({
             {/* 图片显示 */}
             {selectedDiary?.images && selectedDiary.images.length > 0 && (
               selectedDiary.images.map((image, index) => (
-                <div key={`${image}-${index}`} className="image-col">
-                  <div 
-                    className="image-wrapper" 
-                    onClick={(e) => handlePreview(image, e)}
-                  >
-                    <img 
-                      className="diary-image" 
-                      src={image} 
-                      alt={`游记图片 ${index + 1}`} 
-                      loading="lazy"
-                    />
-                    <div className="preview-overlay">
-                      <span className="preview-text"><ZoomInOutlined /> 预览</span>
-                    </div>
+              <div key={`${image}-${index}`} className="image-col">
+                <div 
+                  className="image-wrapper" 
+                  onClick={(e) => handlePreview(image, e)}
+                >
+                  <img 
+                    className="diary-image" 
+                    src={image} 
+                    alt={`游记图片 ${index + 1}`} 
+                    loading="lazy"
+                  />
+                  <div className="preview-overlay">
+                    <span className="preview-text"><ZoomInOutlined /> 预览</span>
                   </div>
                 </div>
+              </div>
               ))
             )}
           </div>

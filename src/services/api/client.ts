@@ -38,7 +38,8 @@ apiClient.interceptors.response.use(
       switch (response.status) {
         case 401:
           localStorage.removeItem('token');
-          window.location.href = '/login';
+          // 删除自动重定向代码，让路由组件处理
+          // window.location.href = '/login';
           break;
         case 403:
           message.error('没有权限执行此操作');

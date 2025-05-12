@@ -1,7 +1,7 @@
 import { UserRole } from '../types';
 
 // API endpoints
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://101.43.95.173/api';
 
 // 定义登录参数接口
 export interface LoginParams {

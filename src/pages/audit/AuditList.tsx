@@ -393,6 +393,7 @@ const AuditList: React.FC = () => {
   const [diaries, setDiaries] = useState<TravelDiary[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
+  const [searchType, setSearchType] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<DiaryStatus | 'all'>('all');
   const [pagination, setPagination] = useState({
     current: 1,
@@ -416,9 +417,15 @@ const AuditList: React.FC = () => {
   const fetchDiaries = useCallback(async (params?: GetAuditDiariesParams) => {
     setLoading(true);
     try {
+      // 构建搜索参数
+      let searchParam = params?.search || searchText;
+      if (searchType !== 'all' && searchParam) {
+        searchParam = `${searchType}:${searchParam}`;
+      }
+
       const response = await useAuditService.getAuditDiaries({
         status: params?.status || statusFilter,
-        search: params?.search || searchText,
+        search: searchParam,
         page: params?.page || pagination.current,
         limit: params?.limit || pagination.pageSize
       });
@@ -491,7 +498,7 @@ const AuditList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchText, pagination.current, pagination.pageSize]);
+  }, [statusFilter, searchText, searchType, pagination.current, pagination.pageSize]);
 
   // 初始加载数据
   useEffect(() => {
@@ -579,6 +586,16 @@ const AuditList: React.FC = () => {
     setPagination(prev => ({ ...prev, current: 1 })); // 重置到第一页
     fetchDiaries({ search: value, page: 1 });
   }, [fetchDiaries]);
+  
+  // 添加搜索类型改变处理函数
+  const handleSearchTypeChange = useCallback((value: string) => {
+    setSearchType(value);
+    // 如果已有搜索文本，使用新的搜索类型重新搜索
+    if (searchText) {
+      setPagination(prev => ({ ...prev, current: 1 }));
+      fetchDiaries({ search: searchText, page: 1 });
+    }
+  }, [fetchDiaries, searchText]);
 
   const handleStatusChange = useCallback((value: DiaryStatus | 'all') => {
     setStatusFilter(value);
@@ -877,6 +894,14 @@ const AuditList: React.FC = () => {
     }
   };
 
+  // 添加搜索类型选项
+  const searchTypeOptions = useMemo(() => [
+    { value: 'all', label: '全部字段' },
+    { value: 'title', label: '标题' },
+    { value: 'content', label: '内容' },
+    { value: 'author', label: '作者' }
+  ], []);
+
   return (
     <div className="audit-page">
       <ErrorBoundary>
@@ -895,11 +920,11 @@ const AuditList: React.FC = () => {
                   <Space size="middle">
                     <Select
                       defaultValue="all"
-                      value={statusFilter}
+                      value={searchType}
                       style={{ width: 120 }}
-                      onChange={handleStatusChange}
+                      onChange={handleSearchTypeChange}
                     >
-                      {statusOptions.map(option => (
+                      {searchTypeOptions.map(option => (
                         <Option key={option.value} value={option.value}>{option.label}</Option>
                       ))}
                     </Select>
@@ -919,7 +944,9 @@ const AuditList: React.FC = () => {
             </div>
           </div>
           
-          {tabsComponent}
+          <div className="custom-tabs-wrapper">
+            {tabsComponent}
+          </div>
         </Card>
 
         <Card 

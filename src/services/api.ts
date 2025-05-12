@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://101.43.95.173/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -50,10 +50,9 @@ api.interceptors.response.use(
       switch (error.response.status) {
         case 401:
           console.error('Authentication error:', error.response.data); // 调试日志
-          // 未授权，清除用户信息并重定向到登录页
+          // 只清除token，不再进行页面重定向，让路由组件处理
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          window.location.href = '/login';
           break;
         case 403:
           // 权限不足
