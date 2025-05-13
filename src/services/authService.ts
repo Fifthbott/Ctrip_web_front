@@ -1,7 +1,5 @@
 import { UserRole } from '../types';
-
-// API endpoints
-const API_BASE_URL = 'http://101.43.95.173/api';
+import { axiosInstance} from '../utils/http';
 
 // 定义登录参数接口
 export interface LoginParams {
@@ -48,55 +46,52 @@ export const authService = {
   login: async (params: LoginParams): Promise<LoginResponse> => {
     console.log('Login attempt with params:', { username: params.username }); // 不记录密码
 
-    const response = await fetch(`${API_BASE_URL}/users/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(params),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Login failed:', errorData);
-      throw new Error(errorData.message || '登录失败');
-    }
-
-    const data = await response.json();
-    console.log('Login response:', {
-      status: data.status,
-      message: data.message,
-      hasToken: !!data.data?.token,
-      hasUser: !!data.data?.user
-    });
-    
-    // 保存token和用户信息到本地存储
-    if (data.status === 'success' && data.data.token) {
-      // 确保存储的是完整的 token 字符串
-      const token = data.data.token;
-      console.log('Saving token to localStorage:', token);
+    try {
+      const response = await axiosInstance.post('/users/login', params);
+      const data = response as unknown as LoginResponse;
       
-      try {
-        localStorage.setItem(TOKEN_KEY, token);
-        localStorage.setItem(USER_KEY, JSON.stringify(data.data.user));
+      console.log('Login response:', {
+        status: data.status,
+        message: data.message,
+        hasToken: !!data.data?.token,
+        hasUser: !!data.data?.user
+      });
+      
+      // 保存token和用户信息到本地存储
+      if (data.status === 'success' && data.data.token) {
+        // 确保存储的是完整的 token 字符串
+        const token = data.data.token;
+        console.log('Saving token to localStorage:', token);
         
-        // 验证token是否成功保存
-        const savedToken = localStorage.getItem(TOKEN_KEY);
-        console.log('Verified saved token:', savedToken);
-        
-        if (!savedToken) {
-          throw new Error('Token was not saved successfully');
+        try {
+          localStorage.setItem(TOKEN_KEY, token);
+          localStorage.setItem(USER_KEY, JSON.stringify(data.data.user));
+          
+          // 验证token是否成功保存
+          const savedToken = localStorage.getItem(TOKEN_KEY);
+          console.log('Verified saved token:', savedToken);
+          
+          if (!savedToken) {
+            throw new Error('Token was not saved successfully');
+          }
+        } catch (error) {
+          console.error('Error saving token:', error);
+          throw new Error('保存登录信息失败');
         }
-      } catch (error) {
-        console.error('Error saving token:', error);
-        throw new Error('保存登录信息失败');
+      } else {
+        console.error('Invalid login response:', data);
+        throw new Error('登录响应中未包含有效的 token');
       }
-    } else {
-      console.error('Invalid login response:', data);
-      throw new Error('登录响应中未包含有效的 token');
+      
+      return data;
+    } catch (error: any) {
+      if (error.response) {
+        console.error('Login failed:', error.response.data);
+        throw new Error(error.response.data?.message || '登录失败');
+      }
+      console.error('Login failed:', error);
+      throw new Error('登录失败');
     }
-    
-    return data;
   },
 
   // 获取当前用户信息
@@ -107,17 +102,12 @@ export const authService = {
       throw new Error('未登录');
     }
     
-    const response = await fetch(`${API_BASE_URL}/users/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) {
+    try {
+      const response = await axiosInstance.get('/users/me');
+      return response as unknown as UserResponse;
+    } catch (error) {
       throw new Error('获取用户信息失败');
     }
-
-    return response.json();
   },
 
   // 退出登录
@@ -165,7 +155,7 @@ export const authService = {
   },
 
   // 添加请求的认证头
-  getAuthHeaders: (): HeadersInit => {
+  getAuthHeaders: (): Record<string, string> => {
     const token = authService.getToken();
     if (!token) {
       console.warn('No token found in localStorage'); // 调试日志

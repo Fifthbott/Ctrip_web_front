@@ -42,8 +42,8 @@ const Login: React.FC = () => {
     <div className="login-container">
       <Card className="login-card">
         <div className="login-header">
-          <Title level={2} className="login-title">旅游日记审核系统</Title>
-          <Title level={4} className="login-subtitle">管理员登录</Title>
+          <Title level={2} className="login-title">游记审核系统</Title>
+          <Title level={4} className="login-subtitle">管理端登录</Title>
         </div>
         
         {error && (
@@ -99,11 +99,11 @@ const Login: React.FC = () => {
           
           <div className="login-tips">
             <Text type="secondary">
-              管理员账号: admin / admin123
+              管理员账号: admin / Admin123
             </Text>
             <br />
             <Text type="secondary">
-              审核员账号: auditor / audit123
+              审核员账号: reviewer / Reviewer123
             </Text>
           </div>
         </Form>

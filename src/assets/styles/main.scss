@@ -1,4 +1,3 @@
-// Variables
 $primary-color: #1890ff;
 $success-color: #52c41a;
 $warning-color: #faad14;
@@ -33,75 +32,7 @@ body {
   background-color: #F5F5F5;
 }
 
-/*
-.layout-container{
-    height: 100vh;
-    width: 60%;
-    margin: auto;
-    display: flex;
-    flex-direction: column;
-
-    .layout-header{
-        margin: 0.1rem;
-        height: 0.6rem;
-        padding: 0;
-        line-height: 0.6rem;
-        background-color: #F5F5F5;
-        display: flex;
-        justify-content: space-between;
-        
-
-        .log{
-            
-            background-color: silver;
-            font-size: 0.4rem;             
-            font-weight: bold;          
-            color: white;                
-            letter-spacing: 1px;       
-            text-transform: uppercase;   
-            line-height: 0.6rem;   
-        }
-        .user-info{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: silver;
-        }
-    }
-
-    .admin-layout {
-        height: calc(100% - 0.6rem);
-        background-color: silver;
-        display: flex;
-        flex-direction: column;
-        
-
-        .admin-container{
-           margin:0.1rem;
-           flex: 1;
-           display: flex;
-           flex-direction: column;
-           .search-header{
-            overflow: hidden;
-        }
-
-        }
-
-        .content-container{
-            margin:0.1rem;
-            flex:1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-    }
-
-}
-*/
-
-// Audit List Styles
+// AuditList样式
 .audit-toolbar {
   display: flex;
   flex-direction: column;
@@ -184,7 +115,7 @@ body {
   }
 }
 
-// Button Styles
+// 按钮样式
 .custom-button {
   display: inline-flex;
   align-items: center;
@@ -195,7 +126,6 @@ body {
   color: white;
   border-radius: $border-radius-base;
 
-  // Variants
   &.button-primary {
     background-color: $primary-color;
   }
@@ -212,7 +142,6 @@ body {
     background-color: $warning-color;
   }
 
-  // Sizes
   &.button-small {
     padding: 4px 12px;
     font-size: 12px;
@@ -228,12 +157,10 @@ body {
     font-size: 16px;
   }
 
-  // Full width
   &.button-full-width {
     width: 100%;
   }
 
-  // States
   &:hover {
     opacity: 0.8;
   }

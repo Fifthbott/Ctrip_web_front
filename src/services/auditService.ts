@@ -1,7 +1,8 @@
-import { TravelDiary, DiaryStatus } from '../types';
+import { DiaryStatus } from '../types';
+import { axiosInstance, API_BASE_URL } from '../utils/http';
+import axios from 'axios';
 
-// API endpoints
-export const API_BASE_URL = 'http://101.43.95.173/api';
+export { API_BASE_URL };
 
 // 获取认证token
 const getAuthToken = (): string | null => {
@@ -9,7 +10,7 @@ const getAuthToken = (): string | null => {
 };
 
 // 获取认证头
-const getAuthHeaders = (): HeadersInit => {
+const getAuthHeaders = (): Record<string, string> => {
   const token = getAuthToken();
   return token ? {
     'Authorization': `Bearer ${token}`,
@@ -100,41 +101,57 @@ export const auditService = {
       queryParams.append('limit', params.limit.toString());
     }
 
-    const response = await fetch(`${API_BASE_URL}/audits/travel-logs?${queryParams.toString()}`, {
-      headers: getAuthHeaders()
-    });
-    
-    if (!response.ok) {
+    try {
+      const response = await axiosInstance.get(`/audits/travel-logs?${queryParams.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      
+      return response as unknown as AuditDiariesListResponse;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("API Error:", error.response.data);
+      } else {
+        console.error("Unknown error:", error);
+      }
       throw new Error('Failed to fetch audit diaries');
     }
-    return response.json();
   },
 
   // 获取待审核游记详情
   getAuditDiaryDetail: async (diaryId: string): Promise<AuditDiaryResponse> => {
-    const response = await fetch(`${API_BASE_URL}/audits/travel-logs/${diaryId}`, {
-      headers: getAuthHeaders()
-    });
-    
-    if (!response.ok) {
+    try {
+      const response = await axiosInstance.get(`/audits/travel-logs/${diaryId}`, {
+        headers: getAuthHeaders()
+      });
+      
+      return response as unknown as AuditDiaryResponse;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("API Error:", error.response.data);
+      } else {
+        console.error("Unknown error:", error);
+      }
       throw new Error('Failed to fetch audit diary details');
     }
-    return response.json();
   },
 
   // 批准游记
   approveDiary: async (diaryId: string): Promise<any> => {
-    const response = await fetch(`${API_BASE_URL}/audits/travel-logs/${diaryId}`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ audit_status: 'approved' }),
-    });
-    
-    if (!response.ok) {
+    try {
+      const response = await axiosInstance.post(`/audits/travel-logs/${diaryId}`, 
+        { audit_status: 'approved' },
+        { headers: getAuthHeaders() }
+      );
+      
+      return response;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("API Error:", error.response.data);
+      } else {
+        console.error("Unknown error:", error);
+      }
       throw new Error('Failed to approve diary');
     }
-    
-    return response.json();
   },
 
   // 拒绝游记
@@ -143,33 +160,38 @@ export const auditService = {
       throw new Error('Rejection reason is required');
     }
     
-    const response = await fetch(`${API_BASE_URL}/audits/travel-logs/${diaryId}`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ 
-        audit_status: 'rejected',
-        reason 
-      }),
-    });
-    
-    if (!response.ok) {
+    try {
+      const response = await axiosInstance.post(`/audits/travel-logs/${diaryId}`, 
+        { audit_status: 'rejected', reason },
+        { headers: getAuthHeaders() }
+      );
+      
+      return response;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("API Error:", error.response.data);
+      } else {
+        console.error("Unknown error:", error);
+      }
       throw new Error('Failed to reject diary');
     }
-    
-    return response.json();
   },
 
   // 删除游记
   deleteDiary: async (diaryId: string): Promise<any> => {
-    const response = await fetch(`${API_BASE_URL}/audits/travel-logs/${diaryId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    
-    if (!response.ok) {
+    try {
+      const response = await axiosInstance.delete(`/audits/travel-logs/${diaryId}`, {
+        headers: getAuthHeaders()
+      });
+      
+      return response;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("API Error:", error.response.data);
+      } else {
+        console.error("Unknown error:", error);
+      }
       throw new Error('Failed to delete diary');
     }
-    
-    return response.json();
   },
 }; 

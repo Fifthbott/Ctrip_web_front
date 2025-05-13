@@ -1,10 +1,10 @@
-// User roles
+// 用户角色
 export enum UserRole {
   ADMIN = 'admin',
   AUDITOR = 'reviewer'
 }
 
-// User interface
+// 用户
 export interface User {
   id: string;
   username: string;
@@ -14,7 +14,7 @@ export interface User {
   name: string;
 }
 
-// Travel diary status
+// 游记状态
 export enum DiaryStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
@@ -22,7 +22,7 @@ export enum DiaryStatus {
   DELETED = 'deleted'
 }
 
-// Travel diary interface
+// 游记
 export interface TravelDiary {
   id: string;
   title: string;
@@ -42,14 +42,14 @@ export interface TravelDiary {
   updatedAt: string;
 }
 
-// Login form values
+// 登录相关
 export interface LoginFormValues {
   username: string;
   password: string;
   remember?: boolean;
 }
 
-// Audit form values
+// 审核
 export interface AuditFormValues {
   status: DiaryStatus;
   rejectReason?: string;

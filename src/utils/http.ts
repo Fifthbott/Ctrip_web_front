@@ -1,45 +1,53 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { message } from 'antd';
 
-const baseURL = process.env.REACT_APP_API_URL || 'http://101.43.95.173/api/';
+// API base URL
+export const API_BASE_URL = 'http://101.43.95.173/api';
 
-const config: AxiosRequestConfig = {
-  baseURL,
+// 创建axios实例
+const axiosConfig: AxiosRequestConfig = {
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 };
 
-export const apiClient: AxiosInstance = axios.create(config);
+// 创建axios实例
+export const axiosInstance: AxiosInstance = axios.create(axiosConfig);
 
 // 请求拦截器
-apiClient.interceptors.request.use(
+axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+    
     if (token) {
+      console.log('Adding token to request:', `Bearer ${token}`); // 调试日志
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn('No token found for request to:', config.url);
     }
+    
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
 // 响应拦截器
-apiClient.interceptors.response.use(
+axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => {
     return response.data;
   },
   (error) => {
-    const { response } = error;
-    if (response) {
-      switch (response.status) {
+    if (error.response) {
+      switch (error.response.status) {
         case 401:
+          console.error('Authentication error:', error.response.data);
           localStorage.removeItem('token');
-          // 删除自动重定向代码，让路由组件处理
-          // window.location.href = '/login';
+          localStorage.removeItem('user');
           break;
         case 403:
           message.error('没有权限执行此操作');
@@ -51,11 +59,14 @@ apiClient.interceptors.response.use(
           message.error('服务器错误，请稍后重试');
           break;
         default:
-          message.error(response.data?.message || '请求失败');
+          message.error(error.response.data?.message || '请求失败');
       }
-    } else {
+    } else if (error.request) {
       message.error('网络错误，请检查网络连接');
+    } else {
+      message.error('请求配置错误');
     }
+    
     return Promise.reject(error);
   }
 ); 
