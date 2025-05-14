@@ -586,6 +586,25 @@ const AuditList: React.FC = () => {
     { value: 'author', label: '作者' }
   ], []);
 
+  // 渲染模态框的函数
+  const renderModal = () => {
+    if (!detailVisible) return null;
+    
+    return (
+      <CustomModal
+        modalRef={detailModalRef as React.RefObject<HTMLDivElement>}
+        visible={detailVisible}
+        selectedDiary={selectedDiary}
+        hasPermission={hasPermission}
+        handleApprove={handleModalApprove}
+        handleReject={handleModalReject}
+        handleDelete={handleModalDelete}
+        getStatusStamp={getStatusStamp}
+        closeModal={() => setDetailVisible(false)}
+      />
+    );
+  };
+
   return (
     <div className="audit-page">
       <ErrorBoundary>
@@ -652,17 +671,7 @@ const AuditList: React.FC = () => {
             }}
           />
           
-          <CustomModal
-            modalRef={detailModalRef as React.RefObject<HTMLDivElement>}
-            visible={detailVisible}
-            selectedDiary={selectedDiary}
-            hasPermission={hasPermission}
-            handleApprove={handleModalApprove}
-            handleReject={handleModalReject}
-            handleDelete={handleModalDelete}
-            getStatusStamp={getStatusStamp}
-            closeModal={() => setDetailVisible(false)}
-          />
+          {renderModal()}
           
           <Modal
             title="拒绝理由"
