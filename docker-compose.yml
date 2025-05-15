@@ -11,8 +11,6 @@ services:
       - "3001:3001"
     networks:
       - ctrip-network
-    depends_on:
-      - ctrip_api
 
 networks:
   ctrip-network:
